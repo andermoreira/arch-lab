@@ -1,0 +1,111 @@
+import { describe, it, expect } from 'vitest';
+import { InMemoryOrderRepository } from './orders/adapters/in-memory-order.repository.js';
+import { StockAggregate } from './inventory/domain/stock.aggregate.js';
+import { InMemoryInventoryRepository } from './inventory/adapters/in-memory-inventory.repository.js';
+import { MockEnterprisePaymentAdapter } from './payments/adapters/mock-payment-gateway.adapter.js';
+import { EnterpriseOutbox } from './outbox/enterprise-outbox.js';
+import { CheckoutSagaOrchestrator } from './saga/checkout-saga.orchestrator.js';
+
+describe('Fase 8: Senior Capstone — Enterprise E-Commerce Checkout Architecture', () => {
+  it('should complete end-to-end checkout with inventory reservation, payment and outbox logging', async () => {
+    const orderRepo = new InMemoryOrderRepository();
+    const inventoryRepo = new InMemoryInventoryRepository();
+    const paymentAdapter = new MockEnterprisePaymentAdapter();
+    const outbox = new EnterpriseOutbox();
+
+    // Seed stock
+    await inventoryRepo.save(new StockAggregate('GPU-RTX-5090', 10));
+
+    const saga = new CheckoutSagaOrchestrator(orderRepo, inventoryRepo, paymentAdapter, outbox);
+
+    const result = await saga.execute({
+      orderId: 'ord_capstone_001',
+      customerId: 'cust_enterprise_88',
+      sku: 'GPU-RTX-5090',
+      quantity: 2,
+      unitPrice: 1999,
+      creditCardToken: 'valid_corp_card',
+    });
+
+    expect(result.status).toBe('CONFIRMED');
+    expect(result.totalAmount).toBe(3998);
+    expect(result.compensated).toBe(false);
+
+    // Verify Order persistence
+    const savedOrder = await orderRepo.findById('ord_capstone_001');
+    expect(savedOrder?.status).toBe('CONFIRMED');
+
+    // Verify Inventory deduction
+    const updatedStock = await inventoryRepo.findBySku('GPU-RTX-5090');
+    expect(updatedStock?.availableQuantity).toBe(8);
+
+    // Verify Outbox audit trail
+    expect(outbox.records.map((r) => r.eventName)).toEqual([
+      'OrderDraftCreated',
+      'InventoryReserved',
+      'PaymentAuthorized',
+      'OrderConfirmed',
+    ]);
+  });
+
+  it('should automatically compensate inventory and cancel order on credit card decline', async () => {
+    const orderRepo = new InMemoryOrderRepository();
+    const inventoryRepo = new InMemoryInventoryRepository();
+    const paymentAdapter = new MockEnterprisePaymentAdapter();
+    const outbox = new EnterpriseOutbox();
+
+    // Seed stock
+    await inventoryRepo.save(new StockAggregate('SERVER-RACK-42U', 3));
+
+    const saga = new CheckoutSagaOrchestrator(orderRepo, inventoryRepo, paymentAdapter, outbox);
+
+    const result = await saga.execute({
+      orderId: 'ord_capstone_002',
+      customerId: 'cust_corp_99',
+      sku: 'SERVER-RACK-42U',
+      quantity: 1,
+      unitPrice: 3500,
+      creditCardToken: 'card_DECLINE_insufficient_credit',
+    });
+
+    expect(result.status).toBe('REJECTED');
+    expect(result.failureReason).toContain('Credit card declined');
+    expect(result.compensated).toBe(true);
+
+    // Verify order cancelled
+    const savedOrder = await orderRepo.findById('ord_capstone_002');
+    expect(savedOrder?.status).toBe('CANCELLED');
+
+    // Verify inventory restored by compensation
+    const stock = await inventoryRepo.findBySku('SERVER-RACK-42U');
+    expect(stock?.availableQuantity).toBe(3); // Untouched!
+
+    // Verify compensation event in Outbox
+    expect(outbox.records.map((r) => r.eventName)).toContain('InventoryCompensationReleased');
+    expect(outbox.records.map((r) => r.eventName)).toContain('OrderCancelled');
+  });
+
+  it('should reject checkout if inventory is insufficient without attempting payment', async () => {
+    const orderRepo = new InMemoryOrderRepository();
+    const inventoryRepo = new InMemoryInventoryRepository();
+    const paymentAdapter = new MockEnterprisePaymentAdapter();
+    const outbox = new EnterpriseOutbox();
+
+    await inventoryRepo.save(new StockAggregate('DESK-ELECTRIC', 1));
+
+    const saga = new CheckoutSagaOrchestrator(orderRepo, inventoryRepo, paymentAdapter, outbox);
+
+    const result = await saga.execute({
+      orderId: 'ord_capstone_003',
+      customerId: 'cust_user_1',
+      sku: 'DESK-ELECTRIC',
+      quantity: 5, // Exceeds available stock (1)
+      unitPrice: 800,
+      creditCardToken: 'valid_card',
+    });
+
+    expect(result.status).toBe('REJECTED');
+    expect(result.failureReason).toContain('Insufficient stock');
+    expect(result.compensated).toBe(false); // Stock was never reserved, no compensation needed
+  });
+});
