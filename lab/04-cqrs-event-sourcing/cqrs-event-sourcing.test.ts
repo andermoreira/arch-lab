@@ -58,6 +58,49 @@ describe('Fase 4: CQRS & Event Sourcing (Append-Only Event Store & Projections)'
     expect(rehydrated.version).toBe(3);
   });
 
+  it('should rebuild a read-model projection from scratch by replaying the event store (the signature ES capability)', async () => {
+    const eventStore = new InMemoryEventStore();
+
+    // Projeção "viva": atualizada em tempo real via subscribe conforme os
+    // comandos são aplicados (o caminho normal de CQRS).
+    const liveProjection = new AccountBalanceProjection();
+    eventStore.subscribe((e) => liveProjection.handle(e));
+
+    const accountId = 'acc_dave_04';
+    const account = BankAccountAggregate.open(accountId, 'Dave', 1000);
+    await eventStore.append(accountId, account.uncommittedEvents, 0);
+    account.clearUncommittedEvents();
+
+    account.deposit(500, 'Bonus');
+    await eventStore.append(accountId, account.uncommittedEvents, 1);
+    account.clearUncommittedEvents();
+
+    account.withdraw(300, 'Rent');
+    await eventStore.append(accountId, account.uncommittedEvents, 2);
+    account.clearUncommittedEvents();
+
+    // --- REBUILD ---
+    // Uma projeção NOVA, que nunca foi assinada e portanto perdeu todos os
+    // eventos em tempo real, é reconstruída do zero relendo o event store a
+    // partir do evento 0. Isso simula recriar um read model (ex.: nova versão do
+    // schema de leitura, ou recuperação após corrupção do read store).
+    const rebuiltProjection = new AccountBalanceProjection();
+    const history = await eventStore.getEventsForStream(accountId);
+    for (const event of history) {
+      rebuiltProjection.handle(event);
+    }
+
+    // A projeção reconstruída por replay puro é idêntica à viva.
+    const live = liveProjection.getById(accountId)!;
+    const rebuilt = rebuiltProjection.getById(accountId)!;
+
+    expect(rebuilt.currentBalance).toBe(live.currentBalance);
+    expect(rebuilt.currentBalance).toBe(1200);
+    expect(rebuilt.totalTransactions).toBe(live.totalTransactions);
+    expect(rebuilt.totalTransactions).toBe(2);
+    expect(rebuilt.holder).toBe('Dave');
+  });
+
   it('should detect optimistic concurrency conflict on version mismatch', async () => {
     const eventStore = new InMemoryEventStore();
     const accountId = 'acc_carol_03';
