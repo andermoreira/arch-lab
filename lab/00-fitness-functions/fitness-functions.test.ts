@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { FitnessRuleEngine, type LayerRule } from './fitness-rules.js';
+import { FitnessRuleEngine, type LayerRule, type ArchitectureViolation } from './fitness-rules.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,5 +40,69 @@ describe('Fase 0: Architecture Fitness Functions & Governance', () => {
     // Exactly one violation expected (the corrupted-order sample)
     expect(violations).toHaveLength(1);
     expect(violations[0].file).toContain('corrupted-order.ts');
+  });
+
+  describe('Robust import graph analysis (why a per-line regex is not enough)', () => {
+    // Fonte de domínio "esperta" que esconde suas dependências de infraestrutura
+    // nas exatas formas que um scanner ingênuo (linha a linha) deixaria passar.
+    const sneakyDomainSource = [
+      "import {",
+      "  Pool,",
+      "  type PoolClient,",
+      "} from 'pg';", // (1) import multi-linha
+      "import type { Redis } from 'ioredis';", // (2) import só de tipo
+      "export { buildRouter } from 'express';", // (3) re-export que é dependência
+      "",
+      "export async function lazyLeak() {",
+      "  const mod = await import('pg'); // (4) import dinâmico",
+      "  return mod;",
+      "}",
+    ].join('\n');
+
+    it('should detect imports that a naive line-by-line regex would miss', () => {
+      const imports = FitnessRuleEngine.extractImportsFromSource(sneakyDomainSource);
+      const targets = imports.map((i) => i.importPath);
+
+      // Todas as 4 formas de dependência são capturadas.
+      expect(targets).toContain('pg'); // multi-linha + dinâmico
+      expect(targets).toContain('ioredis'); // type-only
+      expect(targets).toContain('express'); // re-export
+    });
+
+    it('should map a multi-line import back to the line where it starts', () => {
+      const imports = FitnessRuleEngine.extractImportsFromSource(sneakyDomainSource);
+      const pgStatic = imports.find((i) => i.importPath === 'pg' && i.line === 1);
+      expect(pgStatic).toBeDefined(); // o `import {` começa na linha 1
+    });
+
+    it('should flag a domain file that leaks infrastructure via re-export and type-only import', () => {
+      const domainRuleStrict: LayerRule = {
+        name: 'DOMAIN_PURITY_STRICT',
+        sourcePattern: /.*/, // avalia a fonte fornecida diretamente
+        forbiddenImportPatterns: [/^pg$/, /^express$/, /^ioredis$/],
+        description: 'Domain must not depend on DB drivers or web frameworks in any import form',
+      };
+
+      // Reaproveita o motor de regras sobre os imports extraídos da fonte crua.
+      const imports = FitnessRuleEngine.extractImportsFromSource(sneakyDomainSource);
+      const violations: ArchitectureViolation[] = imports.flatMap((imp) =>
+        domainRuleStrict.forbiddenImportPatterns.some((p) => p.test(imp.importPath))
+          ? [
+              {
+                file: 'sneaky-domain.ts',
+                line: imp.line,
+                forbiddenImport: imp.importPath,
+                ruleName: domainRuleStrict.name,
+                message: domainRuleStrict.description,
+              },
+            ]
+          : []
+      );
+
+      const leaked = violations.map((v) => v.forbiddenImport);
+      expect(leaked).toContain('pg');
+      expect(leaked).toContain('ioredis');
+      expect(leaked).toContain('express');
+    });
   });
 });

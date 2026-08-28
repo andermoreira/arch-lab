@@ -85,6 +85,57 @@ describe('Fase 8: Senior Capstone — Enterprise E-Commerce Checkout Architectur
     expect(outbox.records.map((r) => r.eventName)).toContain('OrderCancelled');
   });
 
+  it('should refund the authorized payment when a post-payment step fails (compensation of the payment context)', async () => {
+    const inventoryRepo = new InMemoryInventoryRepository();
+    const paymentAdapter = new MockEnterprisePaymentAdapter();
+    const outbox = new EnterpriseOutbox();
+
+    await inventoryRepo.save(new StockAggregate('CAMERA-A7', 5));
+
+    // Repositório de pedidos que falha ao salvar o pedido CONFIRMADO (2ª save),
+    // simulando uma falha DEPOIS que o pagamento já foi autorizado. É o único
+    // caminho que exercita a compensação de refund + o estado REFUNDED.
+    const faultyOrderRepo = new InMemoryOrderRepository();
+    const originalSave = faultyOrderRepo.save.bind(faultyOrderRepo);
+    let saveCalls = 0;
+    faultyOrderRepo.save = async (order) => {
+      saveCalls += 1;
+      if (saveCalls === 2) {
+        throw new Error('Order store unavailable during confirm');
+      }
+      return originalSave(order);
+    };
+
+    const saga = new CheckoutSagaOrchestrator(faultyOrderRepo, inventoryRepo, paymentAdapter, outbox);
+
+    const result = await saga.execute({
+      orderId: 'ord_capstone_004',
+      customerId: 'cust_corp_77',
+      sku: 'CAMERA-A7',
+      quantity: 1,
+      unitPrice: 2500,
+      creditCardToken: 'valid_card',
+    });
+
+    expect(result.status).toBe('REJECTED');
+    expect(result.compensated).toBe(true);
+
+    // O pagamento foi autorizado e depois estornado pela compensação.
+    expect(paymentAdapter.refundedTransactions).toHaveLength(1);
+    const eventNames = outbox.records.map((r) => r.eventName);
+    expect(eventNames).toContain('PaymentAuthorized');
+    expect(eventNames).toContain('PaymentRefunded');
+    expect(eventNames).toContain('InventoryCompensationReleased');
+
+    // O agregado de pagamento terminou em REFUNDED no evento de compensação.
+    const refundEvent = outbox.records.find((r) => r.eventName === 'PaymentRefunded');
+    expect(refundEvent?.payload.status).toBe('REFUNDED');
+
+    // Estoque restaurado.
+    const stock = await inventoryRepo.findBySku('CAMERA-A7');
+    expect(stock?.availableQuantity).toBe(5);
+  });
+
   it('should reject checkout if inventory is insufficient without attempting payment', async () => {
     const orderRepo = new InMemoryOrderRepository();
     const inventoryRepo = new InMemoryInventoryRepository();

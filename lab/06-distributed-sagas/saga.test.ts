@@ -44,10 +44,12 @@ describe('Fase 6: Distributed Transactions & The Saga Pattern', () => {
       shippingAddress: 'Rua Augusta, 500, SP',
     });
 
-    expect(result.status).toBe('COMPENSATED_FAILED');
+    // Rollback bem-sucedido -> estado consistente (COMPENSATED), não "falha".
+    expect(result.status).toBe('COMPENSATED');
     expect(result.failureReason).toContain('Payment failed');
     expect(result.executedSteps).toEqual(['RESERVE_INVENTORY']);
     expect(result.compensatedSteps).toEqual(['RELEASE_INVENTORY']);
+    expect(result.failedCompensations).toBeUndefined();
 
     // Crucial check: Inventory was restored! No orphaned/leaked stock!
     expect(inventory.getStock('MACBOOK-M3')).toBe(2);
@@ -70,9 +72,38 @@ describe('Fase 6: Distributed Transactions & The Saga Pattern', () => {
       shippingAddress: '', // Invalid address causing shipping failure
     });
 
-    expect(result.status).toBe('COMPENSATED_FAILED');
+    expect(result.status).toBe('COMPENSATED');
     expect(result.executedSteps).toEqual(['RESERVE_INVENTORY', 'PROCESS_PAYMENT']);
     expect(result.compensatedSteps).toEqual(['REFUND_PAYMENT', 'RELEASE_INVENTORY']);
     expect(inventory.getStock('IPHONE-16')).toBe(10); // Fully restored
+  });
+
+  it('should surface COMPENSATION_FAILED when a compensating transaction itself fails', async () => {
+    const inventory = new InventoryService({ 'GPU-4090': 4 });
+    const payment = new PaymentService();
+    const shipping = new ShippingService();
+
+    // Simula um gateway de refund fora do ar: a compensação de pagamento falha.
+    payment.refund = async () => {
+      throw new Error('Refund gateway timeout');
+    };
+
+    const orchestrator = new OrderFulfillmentSagaOrchestrator(inventory, payment, shipping);
+
+    const result = await orchestrator.execute({
+      orderId: 'ord_104',
+      sku: 'GPU-4090',
+      quantity: 1,
+      totalAmount: 1500,
+      cardNumber: '4111_VALID_CARD',
+      shippingAddress: '', // Falha no shipping dispara compensação de pagamento + estoque
+    });
+
+    // O rollback NÃO ficou limpo: o refund falhou -> exige intervenção.
+    expect(result.status).toBe('COMPENSATION_FAILED');
+    expect(result.failedCompensations).toEqual(['REFUND_PAYMENT']);
+    // O estoque ainda foi restaurado (essa compensação teve sucesso).
+    expect(result.compensatedSteps).toEqual(['RELEASE_INVENTORY']);
+    expect(inventory.getStock('GPU-4090')).toBe(4);
   });
 });
