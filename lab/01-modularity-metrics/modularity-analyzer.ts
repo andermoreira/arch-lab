@@ -42,11 +42,21 @@ export class ModularityAnalyzer {
       const abstractness = pkg.totalClasses === 0 ? 0 : Number((pkg.abstractClasses / pkg.totalClasses).toFixed(3));
       const distance = Number(Math.abs(abstractness + instability - 1).toFixed(3));
 
+      // A classificação correta é baseada na DISTÂNCIA da Sequência Principal (D),
+      // não em limiares crus de I e A. Um pacote com I=0.5/A=0.1 tem D=0.4 (bem
+      // longe da sequência) e é doloroso — mas os limiares antigos (I<0.3 && A<0.3)
+      // o classificariam como MAIN_SEQUENCE, escondendo o problema.
+      //
+      // Perto da sequência (D pequeno) => saudável. Longe da sequência, a direção
+      // de I decide a patologia:
+      //   - I baixo + A baixo (canto inferior esquerdo): estável e concreto => DOR
+      //     (difícil de mudar, muitos dependem, nada abstrato para estender).
+      //   - I alto + A alto (canto superior direito): instável e abstrato => INÚTIL
+      //     (abstrações que ninguém usa).
+      const MAIN_SEQUENCE_TOLERANCE = 0.3; // banda em torno de A + I = 1
       let classification: 'MAIN_SEQUENCE' | 'ZONE_OF_PAIN' | 'ZONE_OF_USELESSNESS' = 'MAIN_SEQUENCE';
-      if (instability < 0.3 && abstractness < 0.3) {
-        classification = 'ZONE_OF_PAIN';
-      } else if (instability > 0.7 && abstractness > 0.7) {
-        classification = 'ZONE_OF_USELESSNESS';
+      if (distance > MAIN_SEQUENCE_TOLERANCE) {
+        classification = instability + abstractness < 1 ? 'ZONE_OF_PAIN' : 'ZONE_OF_USELESSNESS';
       }
 
       return {
@@ -59,6 +69,41 @@ export class ModularityAnalyzer {
         classification,
       };
     });
+  }
+
+  /**
+   * Deriva a Abstractness (A = Na / Nc) a partir de código-fonte TypeScript real,
+   * em vez de números fornecidos à mão.
+   *
+   * "Elemento abstrato" aqui = `interface` ou `abstract class` (contratos que não
+   * podem ser instanciados diretamente). "Elemento concreto" = `class` não
+   * abstrata. A = elementos abstratos / total de elementos.
+   *
+   * É uma contagem sintática (regex) suficiente para o propósito didático: o
+   * aluno vê a métrica emergir do código, não de uma constante escolhida a dedo.
+   */
+  public static deriveAbstractnessFromSource(source: string): {
+    abstractCount: number;
+    totalCount: number;
+    abstractness: number;
+  } {
+    // Remove comentários de linha e de bloco para não contar exemplos comentados.
+    const stripped = source
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/[^\n]*/g, '');
+
+    const interfaceCount = (stripped.match(/\binterface\s+[A-Za-z_$][\w$]*/g) || []).length;
+    const abstractClassCount = (stripped.match(/\babstract\s+class\s+[A-Za-z_$][\w$]*/g) || []).length;
+
+    // Todas as classes (abstratas ou não). Subtraímos as abstratas para achar as concretas.
+    const allClassCount = (stripped.match(/\bclass\s+[A-Za-z_$][\w$]*/g) || []).length;
+    const concreteClassCount = allClassCount - abstractClassCount;
+
+    const abstractCount = interfaceCount + abstractClassCount;
+    const totalCount = interfaceCount + abstractClassCount + concreteClassCount;
+    const abstractness = totalCount === 0 ? 0 : Number((abstractCount / totalCount).toFixed(3));
+
+    return { abstractCount, totalCount, abstractness };
   }
 
   /**

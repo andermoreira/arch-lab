@@ -4,6 +4,7 @@ import { StockAggregate } from './inventory/domain/stock.aggregate.js';
 import { InMemoryInventoryRepository } from './inventory/adapters/in-memory-inventory.repository.js';
 import { MockEnterprisePaymentAdapter } from './payments/adapters/mock-payment-gateway.adapter.js';
 import { EnterpriseOutbox } from './outbox/enterprise-outbox.js';
+import { EnterpriseOutboxRelay, MockEnterpriseEventBroker } from './outbox/enterprise-outbox-relay.js';
 import { CheckoutSagaOrchestrator } from './saga/checkout-saga.orchestrator.js';
 
 describe('Fase 8: Senior Capstone — Enterprise E-Commerce Checkout Architecture', () => {
@@ -158,5 +159,56 @@ describe('Fase 8: Senior Capstone — Enterprise E-Commerce Checkout Architectur
     expect(result.status).toBe('REJECTED');
     expect(result.failureReason).toContain('Insufficient stock');
     expect(result.compensated).toBe(false); // Stock was never reserved, no compensation needed
+  });
+
+  it('should guarantee event delivery via the transactional outbox relay even if the broker is down at first', async () => {
+    const orderRepo = new InMemoryOrderRepository();
+    const inventoryRepo = new InMemoryInventoryRepository();
+    const paymentAdapter = new MockEnterprisePaymentAdapter();
+    const outbox = new EnterpriseOutbox();
+    const broker = new MockEnterpriseEventBroker();
+    const relay = new EnterpriseOutboxRelay(outbox, broker);
+
+    await inventoryRepo.save(new StockAggregate('MONITOR-5K', 4));
+
+    const saga = new CheckoutSagaOrchestrator(orderRepo, inventoryRepo, paymentAdapter, outbox);
+
+    // Checkout confirma o pedido e grava eventos PENDING no outbox.
+    const result = await saga.execute({
+      orderId: 'ord_capstone_005',
+      customerId: 'cust_corp_55',
+      sku: 'MONITOR-5K',
+      quantity: 2,
+      unitPrice: 1200,
+      creditCardToken: 'valid_card',
+    });
+
+    expect(result.status).toBe('CONFIRMED');
+    // Todos os eventos nasceram PENDING (ainda não publicados no broker).
+    expect(outbox.getPending()).toHaveLength(4);
+
+    // Broker fora do ar: o relay tenta e falha, mas NÃO perde os eventos.
+    broker.isHealthy = false;
+    const run1 = await relay.publishPending();
+    expect(run1.publishedCount).toBe(0);
+    expect(run1.failedCount).toBe(4);
+    expect(outbox.getPending()).toHaveLength(4); // continuam pendentes
+
+    // Broker recupera: a próxima passada do relay publica tudo, uma única vez.
+    broker.isHealthy = true;
+    const run2 = await relay.publishPending();
+    expect(run2.publishedCount).toBe(4);
+    expect(outbox.getPending()).toHaveLength(0);
+    expect(broker.published.map((m) => m.eventName)).toEqual([
+      'OrderDraftCreated',
+      'InventoryReserved',
+      'PaymentAuthorized',
+      'OrderConfirmed',
+    ]);
+
+    // Re-executar o relay não republica nada (idempotência do lado do outbox).
+    const run3 = await relay.publishPending();
+    expect(run3.publishedCount).toBe(0);
+    expect(broker.published).toHaveLength(4);
   });
 });
