@@ -1,36 +1,69 @@
-# Workbook 04: CQRS & Event Sourcing
+# Workbook 04: Padrões de Persistência, CQRS & Event Sourcing
 
-## 🎯 Pergunta do Módulo
-Como reconstruir o saldo exato de uma conta bancária a partir de um log imutável de eventos e como garantir que duas transferências concorrentes não corrompam a versão do agregado?
+## 🎯 Pergunta Condutora do Módulo
+*Por que operações destrutivas `UPDATE` e `DELETE` destroem a rastreabilidade contábil e impedem auditoria legal em sistemas financeiros, e como o Event Sourcing com CQRS permite reconstruir o estado exato de qualquer momento no tempo?*
 
 ---
 
-## 🧪 Exercício 1: Append-Only Event Store e Concorrência Otimista
+## 🧪 Exercício 1: Reconstrução de Estado via Replay de Event Log Imutável
 
 ### 1. Objetivo
-Executar comandos em uma conta bancária (`BankAccountAggregate`), gravar eventos no `EventStore`, gerar uma projeção de leitura e simular uma colisão de versão concorrente.
+Criar uma conta bancária, realizar múltiplos depósitos e saques, e reconstruir o saldo atual a partir do zero através do reprocessamento (*replay*) de eventos no Event Store.
 
 ### 2. Hipótese
 Formule sua previsão:
-- *O que o `EventStore` faz quando dois comandos tentam gravar eventos simultaneamente informando a mesma `expectedVersion`?*
+- ( ) O Event Store salva uma linha com o saldo atualizado e sobrescreve o saldo anterior.
+- ( ) O Event Store é um log estritamente **Append-Only** (nunca executa `UPDATE`). O saldo atual é o resultado determinístico da soma e subtração de todos os eventos da stream da conta.
 
 ### 3. Faça
-Execute a suíte de testes de CQRS e Event Sourcing:
+Execute o teste do laboratório CQRS / Event Sourcing:
 ```bash
 npx vitest run lab/04-cqrs-event-sourcing/cqrs-event-sourcing.test.ts
 ```
 
-Inspecione os arquivos em [`lab/04-cqrs-event-sourcing/`](file:///Users/andersonalves/dev/arch-lab/lab/04-cqrs-event-sourcing).
+Inspecione a implementação do Event Store em [`lab/04-cqrs-event-sourcing/store/event-store.ts`](file:///Users/andersonalves/dev/arch-lab/lab/04-cqrs-event-sourcing/store/event-store.ts).
 
 ### 4. Observe
-Veja os eventos `AccountOpened`, `MoneyDeposited`, `MoneyWithdrawn` sendo armazenados em sequência, e a rejeição com erro de `ConcurrencyConflictError` no conflito de versão.
+Veja o histórico de eventos gerados:
+1. `AccountOpenedEvent` (saldo: R$ 0)
+2. `MoneyDepositedEvent` (+ R$ 500)
+3. `MoneyWithdrawnEvent` (- R$ 200)
+4. `MoneyDepositedEvent` (+ R$ 100)
+Ao executar `BankAccountAggregate.rehydrate(events)`, o estado é restaurado com saldo exato de R$ 400.
 
 ### 5. Reflexão & Gabarito
 <details>
-<summary>Ver explicação e gabarito</summary>
+<summary>🔍 Diagnóstico Arquitetural Profundo & Mecânica Interna</summary>
 
-**Vantagens do Event Sourcing:**
-- Auditoria 100% perfeita: nenhum estado é apagado ou sobrescrito.
-- Concorrência Otimista com `expectedVersion` impede conflitos de escrita sem a necessidade de locks pessimistas bloqueantes no banco de dados.
+**A Força do Event Sourcing:**
+- **Auditoria Perfeita:** Nada é esquecido ou sobrescrito. Você sabe exatamente QUEM fez, QUANDO fez e POR QUE fez.
+- **Time Travel Debugging:** Você pode reconstituir o estado do sistema exatamente como ele estava há 3 meses atrás, apenas filtrando eventos até aquela data.
+- **Correção Retroativa:** Em caso de bug em uma regra de cálculo, você corrige o código e reprocessa o log de eventos histórico.
+</details>
 
+---
+
+## 🧪 Exercício 2: Concorrência Otimista com `expectedVersion`
+
+### 1. Objetivo
+Simular duas operações simultâneas tentando gravar eventos na mesma conta bancária ao mesmo tempo, e observar a detecção e rejeição de conflito de concorrência.
+
+### 2. Hipótese
+Se duas requisições lerem a conta na versão 3 e tentarem gravar novos eventos esperando a versão 3:
+- ( ) Ambas serão gravadas gerando inconsistência silenciosa.
+- ( ) A primeira requisição terá sucesso (avançando a stream para a versão 4) e a segunda será rejeitada com erro `ConcurrencyException: Conflito de versão esperada`.
+
+### 3. Faça
+Inspecione o método `appendEvents` em [`lab/04-cqrs-event-sourcing/store/event-store.ts`](file:///Users/andersonalves/dev/arch-lab/lab/04-cqrs-event-sourcing/store/event-store.ts).
+
+### 4. Observe
+O controle otimista de versão impede o problema de *Lost Update* sem necessidade de locks pessimistas bloqueantes no banco de dados.
+
+### 5. Reflexão & Gabarito
+<details>
+<summary>🔍 Diagnóstico Arquitetural Profundo & Mecânica Interna</summary>
+
+**CQRS: Separando Comandos de Projeções:**
+- **Command Side (Escrita):** Otimizado para invariantes, integridade e append-only de alta velocidade.
+- **Query Side (Leitura):** Ouve os eventos e atualiza tabelas desnormalizadas ou índices no Redis/Elasticsearch (`AccountBalanceProjection`), permitindo leituras com $O(1)$ sem JOINs pesados.
 </details>

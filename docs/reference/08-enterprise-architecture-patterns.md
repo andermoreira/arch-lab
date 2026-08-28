@@ -1,23 +1,41 @@
-# Guia de Referência 08: Padrões de Arquitetura Corporativa
+# Guia de Referência 08: Catálogo de Padrões de Arquitetura Corporativa
 
-## 1. Padrões de Integração Corporativa (EIP - Hohpe & Woolf)
+## 1. Visão Geral da Arquitetura Corporativa de Referência
 
-1. **Pipes and Filters:** Processamento sequencial de streams onde cada filtro realiza uma transformação determinística sem depender do estado de outros filtros.
-2. **Message Router & Message Translator:** Encaminhamento dinâmico de mensagens e tradução de esquemas de dados entre sistemas heterogêneos.
-3. **Scatter-Gather:** Disparo paralelo de solicitações para múltiplos fornecedores (ex: cotação de frete) com agregação e escolha da melhor resposta dentro de uma janela de timeout.
-
----
-
-## 2. Padrões de Gateway & Edge Architecture
+O **arch-lab** sintetiza os mais rigorosos padrões da indústria em uma arquitetura limpa, testável e escalável:
 
 ```mermaid
 graph TD
-    Client[Web & Mobile Clients] -->|HTTPS / WSS| APIGW[API Gateway / BFF]
-    APIGW -->|Rate Limiting & Auth| SEC[Security Layer]
-    SEC -->|Roteamento Interno| S1[Orders Service]
-    SEC -->|Roteamento Interno| S2[Payments Service]
-    SEC -->|Roteamento Interno| S3[Inventory Service]
+    subgraph Enterprise_Architecture_Synthesis [Arquitetura de Referência arch-lab]
+        FF[00. Fitness Functions - Governança Contínua]
+        METRICS[01. Métricas de Martin - SDP / SAP / DIP]
+        HEX[02. Arquitetura Hexagonal - Ports & Adapters]
+        DDD[03. DDD Estratégico & Tático - Bounded Contexts]
+        CQRS[04. CQRS & Event Sourcing - Append-Only Store]
+        OUTBOX[05. EDA & Transactional Outbox - At-Least-Once]
+        SAGA[06. Transações Distribuídas - Sagas Orquestradas]
+        RES[07. Resiliência - Circuit Breaker & Single-Flight]
+    end
+
+    FF --> HEX
+    METRICS --> HEX
+    HEX --> DDD
+    DDD --> CQRS
+    DDD --> OUTBOX
+    OUTBOX --> SAGA
+    SAGA --> RES
 ```
 
-- **BFF (Backend for Frontend):** Criação de camadas de agregação específicas por tipo de cliente (ex: BFF Mobile otimizado para payloads enxutos e BFF Web para telas ricas).
-- **Service Mesh:** Infraestrutura dedicada (Envoy, Istio) para tratar mTLS, rastreamento distribuído, retries e circuit breaking no nível de rede (L7).
+---
+
+## 2. Matriz de Decisão Arquitetural Corporativa
+
+| Requisito do Sistema | Padrão Recomendado | Anti-Padrão a Evitar |
+|---|---|---|
+| Regras de negócio complexas | DDD Tático (Agregados Ricos, VOs) | Modelo Anêmico com Getters/Setters |
+| Troca flexível de infraestrutura | Arquitetura Hexagonal (Portas Limpas) | ORMs acoplados diretamente ao Domínio |
+| Rastreabilidade financeira / Auditoria | Event Sourcing com Append-Only Store | Operações destrutivas `UPDATE` / `DELETE` |
+| Mensageria sem perda de dados | Transactional Outbox + Idempotent Consumer | Dual-Write ingênuo (Commit SQL + Publish Broker) |
+| Transações entre múltiplos microsserviços | Sagas Orquestradas com Compensação | 2PC (Two-Phase Commit) com locks distribuídos |
+| Proteção contra falhas em cascata | Circuit Breaker + Bulkhead + Single-Flight | Loops de retry síncronos sem backoff/jitter |
+| Governança de código contínua | Fitness Functions no CI/CD | Confiança exclusiva em Code Review manual |

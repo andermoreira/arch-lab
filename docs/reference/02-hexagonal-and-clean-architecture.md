@@ -1,68 +1,66 @@
 # Guia de Referência 02: Arquitetura Hexagonal & Clean Architecture
 
-## 1. Arquitetura Hexagonal (Ports & Adapters) — Alistair Cockburn
+## 1. As Falhas da Arquitetura N-Tier Tradicional (*Database-Driven Design*)
 
-O objetivo central da Arquitetura Hexagonal é permitir que uma aplicação seja igualmente acionada por usuários humanos, programas externos, testes automatizados ou scripts em lote, e que ela seja desenvolvida e testada de forma isolada de seus dispositivos e bancos de dados em tempo de execução.
+Na arquitetura tradicional de 3 camadas (Controller $\to$ Service $\to$ Repository/DAO), o modelo de dados do banco de dados relacional é o centro gravitacional do sistema.
 
 ```mermaid
 graph LR
-    subgraph Primary_Adapters [Driving Adapters / Inbound]
-        REST[REST API Controller]
-        GRPC[gRPC Server]
-        CRON[Cron Job]
+    subgraph Anti_Pattern_Database_Driven [Anti-Padrão: Database-Driven]
+        C[Controller] --> S[Service]
+        S --> E[Entidade ORM / Tabela SQL]
+        E --> DB[(PostgreSQL)]
     end
-
-    subgraph Hexagon_Core [Hexagon Boundary / Domain & Application]
-        direction TB
-        PORT_IN[Driving Ports / UseCases]
-        CORE[Domain Entities & Aggregates]
-        PORT_OUT[Driven Ports / Interfaces]
-        PORT_IN --> CORE
-        CORE --> PORT_OUT
-    end
-
-    subgraph Secondary_Adapters [Driven Adapters / Outbound]
-        DB_PG[(PostgreSQL Adapter)]
-        DB_MEM[(InMemory Adapter)]
-        PAY[Payment Gateway Adapter]
-        MSG[Kafka Producer Adapter]
-    end
-
-    REST --> PORT_IN
-    GRPC --> PORT_IN
-    CRON --> PORT_IN
-    
-    DB_PG -.->|implements| PORT_OUT
-    DB_MEM -.->|implements| PORT_OUT
-    PAY -.->|implements| PORT_OUT
-    MSG -.->|implements| PORT_OUT
 ```
+
+### Por que isso é tóxico para a evolução do sistema?
+1. **Contaminação de Tipos:** A anotação `@Column({ length: 50 })` ou tipos de banco vazam para regras de negócio.
+2. **Testes Lentos e Frágeis:** Não é possível testar um cálculo de juros sem inicializar uma conexão de banco de dados ou mockar dezenas de métodos de ORMs complexos.
+3. **Impossibilidade de Substituição de Infraestrutura:** Se a empresa decide adotar um banco colunar ou cache Redis, o domínio inteiro precisa ser reescrito.
 
 ---
 
-## 2. A Regra da Dependência da Clean Architecture
+## 2. Arquitetura Hexagonal (Ports & Adapters - Alistair Cockburn)
 
-Proposta por Robert C. Martin (Uncle Bob), a **Regra da Dependência** estabelece:
-> *"As dependências do código-fonte só podem apontar para dentro, na direção de políticas de nível mais alto."*
+A Arquitetura Hexagonal inverte a gravidade do sistema: o **Domínio de Negócio é o centro do universo**, completamente agnóstico de tecnologias externas.
 
-```text
-+-------------------------------------------------------------+
-| Frameworks & Drivers (DB, Web, UI, External Interfaces)     |
-|   +-------------------------------------------------------+ |
-|   | Interface Adapters (Controllers, Gateways, Presenters) | |
-|   |   +-------------------------------------------------+ | |
-|   |   | Application Business Rules (Use Cases)          | | |
-|   |   |   +-------------------------------------------+ | | |
-|   |   |   | Enterprise Business Rules (Entities, VOs) | | | |
-|   |   |   +-------------------------------------------+ | | |
-|   |   +-------------------------------------------------+ | |
-|   +-------------------------------------------------------+ |
-+-------------------------------------------------------------+
-               Direção das Dependências: PARA DENTRO --->
+```mermaid
+graph TD
+    subgraph Driving_Adapters [Adaptadores Primários / Driving]
+        HTTP[HTTP REST Controller]
+        CLI[Command Line Interface]
+        CRON[Cron Job / Worker]
+    end
+
+    subgraph Hexagon_Core [Core da Aplicação & Domínio]
+        InPort[Porta de Entrada: UseCase Interface]
+        AppSvc[Application Service]
+        DomainModel[Entidades de Domínio & Regras Puras]
+        OutPortRepo[Porta de Saída: OrderRepositoryPort]
+        OutPortPay[Porta de Saída: PaymentGatewayPort]
+    end
+
+    subgraph Driven_Adapters [Adaptadores Secundários / Driven]
+        PgRepo[PostgresOrderRepository]
+        MemRepo[InMemoryOrderRepository]
+        StripeAdapter[StripeGatewayAdapter]
+        MockPayAdapter[MockPaymentGatewayAdapter]
+    end
+
+    HTTP --> InPort
+    CLI --> InPort
+    CRON --> InPort
+    InPort --> AppSvc
+    AppSvc --> DomainModel
+    AppSvc --> OutPortRepo
+    AppSvc --> OutPortPay
+    OutPortRepo -.->|Implementa| PgRepo
+    OutPortRepo -.->|Implementa| MemRepo
+    OutPortPay -.->|Implementa| StripeAdapter
+    OutPortPay -.->|Implementa| MockPayAdapter
 ```
 
-### Regras Invioláveis de Camadas:
-1. **Entities & Value Objects:** Não possuem nenhuma dependência externa, nem de banco de dados, nem de frameworks.
-2. **Use Cases:** Orquestram o fluxo de dados para e a partir das entidades, dependendo apenas de interfaces (Ports).
-3. **Interface Adapters:** Convertem dados do formato mais conveniente para os casos de uso e entidades para o formato exigido por agentes externos (ex: HTTP JSON para DTOs de comando).
-4. **Frameworks & Drivers:** Todo detalhe volátil (Postgres, Redis, Express, Fastify) reside aqui.
+### Elementos Estruturais
+- **Portas Primárias (Driving/Inbound):** Definem O QUE a aplicação faz (Casos de Uso consumidos por Controllers e CLIs).
+- **Portas Secundárias (Driven/Outbound):** Definem O QUE a aplicação precisa do mundo exterior (Repositórios, Mensageria, Gateways de Pagamento).
+- **Adaptadores:** Tradutores tecnológicos que convertem requisições HTTP/SQL para os tipos e portas do Domínio.

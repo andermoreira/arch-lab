@@ -1,60 +1,59 @@
-# Guia de Referência 04: CQRS & Event Sourcing Deep Dive
+# Guia de Referência 04: Padrões de Persistência, CQRS & Event Sourcing
 
-## 1. CQRS (Command Query Responsibility Segregation)
+## 1. O Dilema do Modelo Único de Persistência
 
-Criado por Greg Young com base no princípio CQS de Bertrand Meyer, o CQRS preconiza que qualquer operação sobre um sistema é ou uma **Mutação (Command)** ou uma **Consulta (Query)**, nunca ambos:
+Em sistemas tradicionais, o mesmo modelo de dados relacional atende a escrita (transações, normalização 3FN, locks) e a leitura (relatórios, agregações, filtros). Isso cria um conflito insolúvel:
+- Para escrever com segurança, você precisa de tabelas normalizadas e transações ACID estritas.
+- Para ler com alta velocidade em páginas de alto tráfego, você precisa de dados desnormalizados e índices compostos.
 
-```text
-               +--------------------------------------------+
-               |                  CLIENT                    |
-               +----------------------+---------------------+
-                                      |
-                +---------------------+---------------------+
-                |                                           |
-     [COMMAND: POST /pay]                         [QUERY: GET /balance]
-                |                                           |
-                v                                           v
-     +---------------------+                     +---------------------+
-     |   Command Handler   |                     |    Query Handler    |
-     +----------+----------+                     +----------+----------+
-                |                                           |
-                v                                           v
-     +---------------------+                     +---------------------+
-     | Domain Model / Write|                     | Read Model / Proj.  |
-     | (Enforces Invariant)|                     | (Fast, Denormalized)|
-     +----------+----------+                     +----------+----------+
-                |                                           ^
-                |        Async Event Stream                 |
-                +-------------------------------------------+
+---
+
+## 2. CQRS (Command Query Responsibility Segregation - Greg Young)
+
+O CQRS divide a aplicação em dois modelos arquiteturais independentes:
+
+```mermaid
+graph TD
+    subgraph Command_Side [Lado de Escrita / Comandos]
+        Cmd[Comando: TransferMoney] --> Handler[CommandHandler]
+        Handler --> Agg[BankAccountAggregate]
+        Agg -->|Grava Eventos| EventStore[(Append-Only Event Store)]
+    end
+
+    subgraph Async_Propagation [Propagação Assíncrona de Eventos]
+        EventStore -->|Event Stream| Projector[BalanceProjector Worker]
+    end
+
+    subgraph Query_Side [Lado de Leitura / Consultas]
+        Projector -->|Atualiza Visão Desnormalizada| ReadDB[(Read Model - Redis / Elasticsearch)]
+        Client[Cliente Web / App] -->|Query: GetAccountSummary| ReadDB
+    end
 ```
 
 ---
 
-## 2. Event Sourcing
+## 3. Event Sourcing: O Log Imutável de Eventos
 
-### 2.1 A Estrutura do Append-Only Event Store
-No Event Sourcing, cada mutação gera um evento imutável indexado por um stream de agregado:
+Em vez de armazenar apenas o estado final atual de uma entidade (sobrescrevendo o saldo com `UPDATE accounts SET balance = 500`), o **Event Sourcing** armazena a sequência cronológica completa de eventos que levaram a esse estado.
 
-| stream_id | version | event_type | payload | timestamp |
+### Anatomia de um Event Store
+| Stream ID | Versão | Tipo de Evento | Payload JSON | Timestamp UTC |
 |---|---|---|---|---|
-| `acc-101` | 1 | `AccountOpened` | `{"holder": "Alice", "currency": "BRL"}` | `2026-08-27T10:00:00Z` |
-| `acc-101` | 2 | `MoneyDeposited` | `{"amount": 500, "currency": "BRL"}` | `2026-08-27T10:05:00Z` |
-| `acc-101` | 3 | `MoneyWithdrawn` | `{"amount": 200, "currency": "BRL"}` | `2026-08-27T10:15:00Z` |
+| `acc-001` | 1 | `AccountOpened` | `{"owner": "Alice"}` | 2026-08-27T10:00:00Z |
+| `acc-001` | 2 | `MoneyDeposited` | `{"amount": 1000, "currency": "BRL"}` | 2026-08-27T10:05:00Z |
+| `acc-001` | 3 | `MoneyWithdrawn` | `{"amount": 300, "currency": "BRL"}` | 2026-08-27T11:20:00Z |
 
-### 2.2 Replay e Snapshots
-- **Replay:** O estado atual do agregado é obtido instanciando um objeto vazio e aplicando sequencialmente cada evento do stream histórico.
-- **Snapshots:** Para agregados com centenas de eventos, gravamos um snapshot do estado na versão $V$ (ex: $V=100$), e carregamos apenas os eventos com versão $> 100$.
+```text
+Estado Atual (Reidratação): 
+Saldo = 0 + 1000 - 300 = 700 BRL
+```
 
-### 2.3 Concorrência Otimista (`expectedVersion`)
-Para evitar conflito de gravação concorrente:
+### Concorrência Otimista com `expectedVersion`
+Para evitar conflitos de gravação sem travar o banco:
 ```typescript
-async appendEvents(streamId: string, events: DomainEvent[], expectedVersion: number): Promise<void> {
-  const currentVersion = await this.getCurrentVersion(streamId);
-  if (currentVersion !== expectedVersion) {
-    throw new ConcurrencyConflictError(
-      `Stream ${streamId} version mismatch. Expected ${expectedVersion}, found ${currentVersion}`
-    );
-  }
-  // Insere atomicamente
-}
+await eventStore.appendEvents({
+  streamId: "acc-001",
+  expectedVersion: 3, // Se outro processo gravou a versão 4 primeiro, lança ConcurrencyException!
+  events: [new MoneyWithdrawnEvent(100)]
+});
 ```

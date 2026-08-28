@@ -1,37 +1,47 @@
 # Guia de Referência 07: Resiliência, Escalabilidade & Padrões Distribuídos
 
-## 1. Padrões de Resiliência
+## 1. Padrões de Resiliência Corporativa (Michael Nygard)
 
-### 1.1 Circuit Breaker
-O Circuit Breaker impede que chamadas repetidas a um serviço degradado sobrecarreguem o sistema ou consumam threads indefinidamente:
+Em arquiteturas distribuídas de microsserviços, falhas de rede e lentidões são certezas matemáticas. O objetivo da resiliência é isolar a falha e garantir a continuidade do sistema.
+
+### 1.1 Circuit Breaker (Disjuntor de Rede)
 
 ```mermaid
 stateDiagram-v2
-    [*] --> CLOSED
-    CLOSED --> OPEN: Falhas consecutivas > Threshold
-    OPEN --> HALF_OPEN: Tempo de Timeout expirou
-    HALF_OPEN --> CLOSED: Chamada de teste bem-sucedida
-    HALF_OPEN --> OPEN: Chamada de teste falhou
+    [*] --> CLOSED: Operação Normal
+    CLOSED --> OPEN: Falhas consecutivas > Limite
+    OPEN --> HALF_OPEN: Janela de Reset Expirada
+    HALF_OPEN --> CLOSED: Requisição Canário com Sucesso
+    HALF_OPEN --> OPEN: Requisição Canário com Falha
 ```
 
-### 1.2 Bulkhead Pattern
-Inspirado nas divisórias estanques de navios que impedem que um furo no casco inunde a embarcação inteira.
-No software, limita a quantidade de execuções simultâneas ou threads dedicadas a uma dependência específica (ex: máximo 10 conexões para o serviço de CEP).
+- **CLOSED:** Requisições passam normalmente. Falhas são contabilizadas.
+- **OPEN:** Todas as chamadas falham imediatamente (*Fast-Fail* sem bater na rede), evitando desperdício de threads e sockets.
+- **HALF-OPEN:** Envia uma única requisição de teste para avaliar se o serviço remoto se recuperou.
+
+### 1.2 Bulkhead (Isolamento de Recursos)
+Inspirado nas anteparas dos cascos de navios: se um compartimento inundar, os outros mantêm o navio flutuando.
+- Pools de threads e conexões separados por cliente/dependência.
+- Se o serviço de cálculo de frete travar, o pool de checkout de cartão continua operando normalmente.
 
 ### 1.3 Retry com Exponential Backoff e Jitter
-Adicionar uma variação aleatória (*Jitter*) ao tempo de espera entre tentativas sucessivas:
-$$T_{wait} = \min(T_{max}, T_{base} \times 2^{tentativa}) + \text{random}(0, \text{jitter})$$
-Isso impede que milhares de clientes desconectados tentem reconectar exatamente no mesmo milissegundo (*Thundering Herd*).
+Retentar imediatamente após um erro de rede sobrecarrega o servidor que acabou de cair. A fórmula recomendada adiciona atraso exponencial e aleatoriedade (*Jitter*):
+$$T_{\text{wait}} = \min(T_{\text{max}}, T_{\text{base}} \times 2^{\text{tentativa}}) + \text{random}(0, \text{Jitter})$$
 
 ---
 
 ## 2. Estratégias de Cache & Prevenção de Cache Stampede
 
-### 2.1 Padrões de Cache
-- **Cache-Aside (Lazy Loading):** A aplicação busca no cache; se der *miss*, busca no banco e grava no cache.
-- **Write-Through:** Toda escrita grava simultaneamente no cache e no banco de dados.
-- **Write-Behind (Write-Back):** A escrita é feita no cache e confirmada imediatamente; um worker em background grava assincronamente no banco.
+```mermaid
+graph TD
+    subgraph Single_Flight_Mutex [Prevenção de Cache Stampede]
+        Req1[Requisição Concorrente 1] --> Lock{Chave em Processamento?}
+        Req2[Requisição Concorrente 2] --> Lock
+        Req3[Requisição Concorrente 3] --> Lock
+        Lock -->|Primeira Requisição| DB[(Busca Pesada no Banco)]
+        DB --> Cache[(Popula Redis Cache)]
+        Cache --> Share[Compartilha Resultado com Todas as 3 Requisições]
+    end
+```
 
-### 2.2 Cache Stampede & Single-Flight Mutex
-Quando uma chave com alta taxa de leitura expira no cache, centenas de requisições simultâneas geram *cache miss* e atacam o banco ao mesmo tempo.
-O padrão **Single-Flight** sincroniza as chamadas em memória: apenas a primeira requisição dispara a busca ao banco; as demais aguardam a mesma Promise ser resolvida.
+- **Single-Flight:** Agrupa múltiplas chamadas concorrentes para a mesma chave em uma única execução de busca no banco, evitando o efeito *Thundering Herd*.
