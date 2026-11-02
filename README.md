@@ -6,6 +6,9 @@ Bem-vindo ao **arch-lab**, um laboratório prático de engenharia de software e 
 
 ## 🎯 Filosofia Pedagógica
 
+> [!TIP]
+> **Primeira vez estudando Arquitetura de Software?** Comece pelo **[Guia para Iniciantes](docs/INICIANTE.md)** para entender os conceitos através de analogias intuitivas (edifícios, tomadas, disjuntores, pacotes lacrados) e rodar seu primeiro teste arquitetural em 5 minutos!
+
 O **arch-lab** rejeita o aprendizado puramente teórico de arquitetura ("desenhar caixinhas em slides"). Nosso método é fundamentado em quatro pilares inegociáveis:
 
 1. **Fenômeno antes da Definição:** Você vê o sistema falhar, a concorrência travar ou a perda de dados ocorrer antes da formalização teórica do padrão.

@@ -1,5 +1,8 @@
 # A JORNADA DO ARQUITETO — arch-lab
 
+> [!TIP]
+> **Iniciante em Arquitetura de Software?** Comece pelo [Guia para Iniciantes](../INICIANTE.md) para construir intuição através de analogias da vida real (pilares de edifícios, disjuntores, tomadas de parede) e consulte o [Glossário com Analogias](../GLOSSARIO.md).
+
 A **Jornada** é a trilha de leitura linear e progressão conceitual do **arch-lab**. Ela foi desenhada para guiar o engenheiro através de uma narrativa lógica, onde cada bloco resolve os problemas arquiteturais deixados em aberto pelo anterior.
 
 ---
