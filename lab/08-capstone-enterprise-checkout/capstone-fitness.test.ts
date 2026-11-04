@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FitnessRuleEngine, type LayerRule } from '../00-fitness-functions/fitness-rules.js';
@@ -58,16 +60,23 @@ describe('Fase 8: Capstone Architecture Fitness Function (no infrastructure leak
     expect(violations, violations.map((v) => v.message).join('\n')).toHaveLength(0);
   });
 
-  it('should catch a simulated infrastructure leak injected into the domain layer', () => {
-    // Prova que a fitness function realmente morde: um agregado fictício que
-    // importa o driver de banco diretamente é reprovado.
-    const leakingSource = "import { Pool } from 'pg';\nexport class LeakyAggregate {}";
-    const imports = FitnessRuleEngine.extractImportsFromSource(leakingSource);
+  it('should catch an infrastructure leak written into a domain/ folder (end to end through evaluateRules)', () => {
+    // Prova que a fitness function realmente morde: um agregado fictício num
+    // diretório domain/ que importa o driver de banco é reprovado pelo motor.
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'arch-lab-leak-'));
+    try {
+      const domainDir = path.join(root, 'orders', 'domain');
+      fs.mkdirSync(domainDir, { recursive: true });
+      const leaky = path.join(domainDir, 'leaky.aggregate.ts');
+      fs.writeFileSync(leaky, "import { Pool } from 'pg';\nexport class LeakyAggregate {}\n");
 
-    const violates = imports.some((imp) =>
-      domainPurityRule.forbiddenImportPatterns.some((p) => p.test(imp.importPath))
-    );
+      const violations = FitnessRuleEngine.evaluateRules([leaky], [domainPurityRule, portPurityRule]);
 
-    expect(violates).toBe(true);
+      expect(violations).toHaveLength(1);
+      expect(violations[0]?.ruleName).toBe('CAPSTONE_DOMAIN_PURITY');
+      expect(violations[0]?.forbiddenImport).toBe('pg');
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });
