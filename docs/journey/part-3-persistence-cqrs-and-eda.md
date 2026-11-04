@@ -99,7 +99,7 @@ sequenceDiagram
 ## 🔬 Checkpoint Prático da Parte 3
 
 Execute o laboratório e complete os workbooks:
-- Workbook: [`docs/workbooks/04-cqrs-event-sourcing-workbook.md`](file:///Users/andersonalves/dev/arch-lab/docs/workbooks/04-cqrs-event-sourcing-workbook.md)
-- Lab: [`lab/04-cqrs-event-sourcing/`](file:///Users/andersonalves/dev/arch-lab/lab/04-cqrs-event-sourcing)
-- Workbook: [`docs/workbooks/05-eda-outbox-workbook.md`](file:///Users/andersonalves/dev/arch-lab/docs/workbooks/05-eda-outbox-workbook.md)
-- Lab: [`lab/05-eda-and-outbox/`](file:///Users/andersonalves/dev/arch-lab/lab/05-eda-and-outbox)
+- Workbook: [`docs/workbooks/04-cqrs-event-sourcing-workbook.md`](../workbooks/04-cqrs-event-sourcing-workbook.md)
+- Lab: [`lab/04-cqrs-event-sourcing/`](../../lab/04-cqrs-event-sourcing)
+- Workbook: [`docs/workbooks/05-eda-outbox-workbook.md`](../workbooks/05-eda-outbox-workbook.md)
+- Lab: [`lab/05-eda-and-outbox/`](../../lab/05-eda-and-outbox)

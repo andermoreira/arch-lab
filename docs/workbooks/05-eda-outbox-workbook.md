@@ -26,7 +26,7 @@ Execute o teste do Transactional Outbox:
 npx vitest run lab/05-eda-and-outbox/outbox.test.ts
 ```
 
-Inspecione os arquivos em [`lab/05-eda-and-outbox/`](file:///Users/andersonalves/dev/arch-lab/lab/05-eda-and-outbox).
+Inspecione os arquivos em [`lab/05-eda-and-outbox/`](../../lab/05-eda-and-outbox).
 
 ### 4. Observe
 Veja que no laboratório:
@@ -57,7 +57,7 @@ Se o relay enviar a mesma mensagem 3 vezes devido a timeouts de confirmação:
 - ( ) O `IdempotentConsumer` processará a mensagem apenas na primeira vez, gravando o `message_id` na tabela de mensagens processadas e ignorando com segurança as 2 tentativas subsequentes.
 
 ### 3. Faça
-Inspecione o consumidor em [`lab/05-eda-and-outbox/idempotent-consumer.ts`](file:///Users/andersonalves/dev/arch-lab/lab/05-eda-and-outbox/idempotent-consumer.ts).
+Inspecione o consumidor em [`lab/05-eda-and-outbox/idempotent-consumer.ts`](../../lab/05-eda-and-outbox/idempotent-consumer.ts).
 
 ### 4. Observe
 O teste confirma que o estado de negócio é mutado exatamente uma única vez, provando a semântica de *Effectively-Once Processing*.
@@ -69,3 +69,9 @@ O teste confirma que o estado de negócio é mutado exatamente uma única vez, p
 **Entrega At-Least-Once + Consumidor Idempotente = Consistência:**
 Em redes distribuídas, nenhum broker pode garantir entrega exatamente uma vez (*Exactly-Once*) em todos os cenários de falha sem custos proibitivos. O padrão padrão ouro da indústria é combinar **At-Least-Once Delivery** (via Outbox) com **Idempotent Consumers** no destino.
 </details>
+
+---
+
+## ✅ Critério de pronto
+
+Você domina este módulo quando `npx vitest run lab/05-eda-and-outbox/outbox.test.ts` passa, `npm run lint` valida sem erros e você explica, sem reabrir o gabarito, em que ponto a sua hipótese divergiu do observado em cada exercício.

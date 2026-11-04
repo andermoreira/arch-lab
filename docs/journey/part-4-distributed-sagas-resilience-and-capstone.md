@@ -74,9 +74,9 @@ No Capstone corporativo, integramos todos os pilares em um sistema de ponta a po
 ## 🔬 Checkpoint Prático da Parte 4
 
 Execute o laboratório e complete os workbooks:
-- Workbook: [`docs/workbooks/06-distributed-sagas-workbook.md`](file:///Users/andersonalves/dev/arch-lab/docs/workbooks/06-distributed-sagas-workbook.md)
-- Lab: [`lab/06-distributed-sagas/`](file:///Users/andersonalves/dev/arch-lab/lab/06-distributed-sagas)
-- Workbook: [`docs/workbooks/07-resilience-patterns-workbook.md`](file:///Users/andersonalves/dev/arch-lab/docs/workbooks/07-resilience-patterns-workbook.md)
-- Lab: [`lab/07-resilience-patterns/`](file:///Users/andersonalves/dev/arch-lab/lab/07-resilience-patterns)
-- Workbook: [`docs/workbooks/08-capstone-enterprise-checkout-workbook.md`](file:///Users/andersonalves/dev/arch-lab/docs/workbooks/08-capstone-enterprise-checkout-workbook.md)
-- Lab: [`lab/08-capstone-enterprise-checkout/`](file:///Users/andersonalves/dev/arch-lab/lab/08-capstone-enterprise-checkout)
+- Workbook: [`docs/workbooks/06-distributed-sagas-workbook.md`](../workbooks/06-distributed-sagas-workbook.md)
+- Lab: [`lab/06-distributed-sagas/`](../../lab/06-distributed-sagas)
+- Workbook: [`docs/workbooks/07-resilience-patterns-workbook.md`](../workbooks/07-resilience-patterns-workbook.md)
+- Lab: [`lab/07-resilience-patterns/`](../../lab/07-resilience-patterns)
+- Workbook: [`docs/workbooks/08-capstone-enterprise-checkout-workbook.md`](../workbooks/08-capstone-enterprise-checkout-workbook.md)
+- Lab: [`lab/08-capstone-enterprise-checkout/`](../../lab/08-capstone-enterprise-checkout)

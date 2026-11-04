@@ -32,7 +32,7 @@ graph TD
   4. *Code:* Classes, interfaces e diagramas de sequência.
 
 ### Fitness Functions: Arquitetura como Teste Automatizado
-Para impedir a erosão arquitetural, usamos **Fitness Functions**: testes unitários que inspecionam o grafo de importações e a AST do código-fonte.
+Para impedir a erosão arquitetural, usamos **Fitness Functions**: testes unitários que inspecionam os imports extraídos do código-fonte e o grafo de dependências entre módulos.
 Se um desenvolvedor importar `pg` ou `express` dentro de uma entidade de domínio, o teste falha no CI.
 
 ### Modelo Mental / Analogia da Vida Real
@@ -87,7 +87,7 @@ Dada uma coleção de pacotes ou módulos:
 ## 🔬 Checkpoint Prático da Parte 1
 
 Execute o laboratório e complete os workbooks:
-- Workbook: [`docs/workbooks/00-fitness-functions-workbook.md`](file:///Users/andersonalves/dev/arch-lab/docs/workbooks/00-fitness-functions-workbook.md)
-- Lab: [`lab/00-fitness-functions/`](file:///Users/andersonalves/dev/arch-lab/lab/00-fitness-functions)
-- Workbook: [`docs/workbooks/01-modularity-metrics-workbook.md`](file:///Users/andersonalves/dev/arch-lab/docs/workbooks/01-modularity-metrics-workbook.md)
-- Lab: [`lab/01-modularity-metrics/`](file:///Users/andersonalves/dev/arch-lab/lab/01-modularity-metrics)
+- Workbook: [`docs/workbooks/00-fitness-functions-workbook.md`](../workbooks/00-fitness-functions-workbook.md)
+- Lab: [`lab/00-fitness-functions/`](../../lab/00-fitness-functions)
+- Workbook: [`docs/workbooks/01-modularity-metrics-workbook.md`](../workbooks/01-modularity-metrics-workbook.md)
+- Lab: [`lab/01-modularity-metrics/`](../../lab/01-modularity-metrics)

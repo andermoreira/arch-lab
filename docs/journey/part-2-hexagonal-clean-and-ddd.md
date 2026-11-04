@@ -85,7 +85,7 @@ No **Modelo Rico**:
 ## 🔬 Checkpoint Prático da Parte 2
 
 Execute o laboratório e complete os workbooks:
-- Workbook: [`docs/workbooks/02-hexagonal-architecture-workbook.md`](file:///Users/andersonalves/dev/arch-lab/docs/workbooks/02-hexagonal-architecture-workbook.md)
-- Lab: [`lab/02-hexagonal-architecture/`](file:///Users/andersonalves/dev/arch-lab/lab/02-hexagonal-architecture)
-- Workbook: [`docs/workbooks/03-ddd-tactical-workbook.md`](file:///Users/andersonalves/dev/arch-lab/docs/workbooks/03-ddd-tactical-workbook.md)
-- Lab: [`lab/03-domain-driven-design/`](file:///Users/andersonalves/dev/arch-lab/lab/03-domain-driven-design)
+- Workbook: [`docs/workbooks/02-hexagonal-architecture-workbook.md`](../workbooks/02-hexagonal-architecture-workbook.md)
+- Lab: [`lab/02-hexagonal-architecture/`](../../lab/02-hexagonal-architecture)
+- Workbook: [`docs/workbooks/03-ddd-tactical-workbook.md`](../workbooks/03-ddd-tactical-workbook.md)
+- Lab: [`lab/03-domain-driven-design/`](../../lab/03-domain-driven-design)

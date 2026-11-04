@@ -8,16 +8,16 @@
 ## 🧪 Exercício 1: O Fenômeno da Violação de Camadas (Tainted Domain)
 
 ### 1. Objetivo
-Observar em tempo real a detecção de uma violação arquitetural grave: uma entidade de domínio importando o cliente `pg` (PostgreSQL) e o framework `express`.
+Observar em tempo real a detecção de uma violação arquitetural grave: uma entidade de domínio importando o cliente `pg` (PostgreSQL).
 
 ### 2. Hipótese
 Analise os dois módulos de código:
-- **Domínio Limpo:** [`lab/00-fitness-functions/sample-codebase/clean-domain/order.ts`](file:///Users/andersonalves/dev/arch-lab/lab/00-fitness-functions/sample-codebase/clean-domain/order.ts) (contém apenas lógica de domínio pura em TypeScript).
-- **Domínio Contaminado:** [`lab/00-fitness-functions/sample-codebase/tainted-domain/corrupted-order.ts`](file:///Users/andersonalves/dev/arch-lab/lab/00-fitness-functions/sample-codebase/tainted-domain/corrupted-order.ts) (importa `pg` e `express`).
+- **Domínio Limpo:** [`lab/00-fitness-functions/sample-codebase/clean-domain/order.ts`](../../lab/00-fitness-functions/sample-codebase/clean-domain/order.ts) (contém apenas lógica de domínio pura em TypeScript).
+- **Domínio Contaminado:** [`lab/00-fitness-functions/sample-codebase/tainted-domain/corrupted-order.ts`](../../lab/00-fitness-functions/sample-codebase/tainted-domain/corrupted-order.ts) (importa `pg`).
 
 Formule sua hipótese:
 - ( ) O compilador do TypeScript acusará erro de sintaxe e impedirá o build.
-- ( ) O compilador do TypeScript compilará normalmente com sucesso, mas a **Fitness Function** rejeitará o arquivo corrompido, listando `pg` e `express` como violações de fronteira proibidas.
+- ( ) O compilador do TypeScript compilará normalmente com sucesso, mas a **Fitness Function** rejeitará o arquivo corrompido, apontando `pg` como violação de fronteira proibida.
 
 ### 3. Faça
 Execute o teste de Fitness Functions via Vitest:
@@ -25,12 +25,12 @@ Execute o teste de Fitness Functions via Vitest:
 npm run test:arch
 ```
 
-Inspecione o teste em [`lab/00-fitness-functions/fitness-functions.test.ts`](file:///Users/andersonalves/dev/arch-lab/lab/00-fitness-functions/fitness-functions.test.ts).
+Inspecione o teste em [`lab/00-fitness-functions/fitness-functions.test.ts`](../../lab/00-fitness-functions/fitness-functions.test.ts).
 
 ### 4. Observe
-Veja que o teste executa o analisador de AST sobre o código fonte:
+Veja que o teste varre os imports do código fonte (o motor lê o texto do arquivo com expressões regulares tolerantes a quebras de linha; não usa AST):
 - `clean-domain/order.ts` é aprovado com **0 violações**.
-- `tainted-domain/corrupted-order.ts` é rejeitado com **2 violações de gravidade ALTA**: imports proibidos `pg` e `express`.
+- `tainted-domain/corrupted-order.ts` é rejeitado com **1 violação**: o import proibido `pg`, atribuído à regra `DOMAIN_PURITY_RULE`.
 
 ### 5. Reflexão & Gabarito
 <details>
@@ -57,7 +57,7 @@ Considere um grafo de pacotes onde o módulo `Orders` importa `Payments`, `Payme
 - ( ) Cria-se um ciclo fechado onde nenhuma alteração ou release pode ser feito isoladamente, violando o Princípio de Dependências Acíclicas (ADP).
 
 ### 3. Faça
-Inspecione o algoritmo de detecção de ciclos em [`lab/00-fitness-functions/fitness-rules.ts`](file:///Users/andersonalves/dev/arch-lab/lab/00-fitness-functions/fitness-rules.ts) e execute o teste correspondente:
+Inspecione `FitnessRuleEngine.findDependencyCycles` em [`lab/00-fitness-functions/fitness-rules.ts`](../../lab/00-fitness-functions/fitness-rules.ts) e execute o teste correspondente:
 ```bash
 npx vitest run -t "cycle" lab/00-fitness-functions/fitness-functions.test.ts
 ```
@@ -75,3 +75,9 @@ Para quebrar o ciclo $A \to B \to C \to A$, o arquiteto tem duas soluções can�
 1. **Inversão de Dependências (DIP):** Fazer com que $C$ dependa de uma interface (Porta) definida em $C$, implementada por um adaptador fora do ciclo.
 2. **Eventos de Domínio:** Fazer com que $C$ emita um evento assíncrono (`ShipmentCreatedEvent`) em vez de chamar diretamente o módulo $A$.
 </details>
+
+---
+
+## ✅ Critério de pronto
+
+Você domina este módulo quando `npm run test:arch` passa, `npm run lint` valida sem erros e você explica, sem reabrir o gabarito, em que ponto a sua hipótese divergiu do observado em cada exercício.

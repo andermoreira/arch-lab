@@ -25,7 +25,7 @@ Execute o analisador de métricas no laboratório:
 npx vitest run lab/01-modularity-metrics/modularity-metrics.test.ts
 ```
 
-Inspecione o analisador em [`lab/01-modularity-metrics/modularity-analyzer.ts`](file:///Users/andersonalves/dev/arch-lab/lab/01-modularity-metrics/modularity-analyzer.ts).
+Inspecione o analisador em [`lab/01-modularity-metrics/modularity-analyzer.ts`](../../lab/01-modularity-metrics/modularity-analyzer.ts).
 
 ### 4. Observe
 Veja as métricas calculadas pelo analisador para cada pacote. Observe que o índice de instabilidade varia de $0.0$ a $1.0$.
@@ -58,7 +58,7 @@ Se um módulo com 10 classes concretas e 0 interfaces tiver $C_a = 8$ e $C_e = 0
 - ( ) Sua distância $D$ será próxima de $1.0$, classificando-o diretamente na perigosa **Zona da Dor**.
 
 ### 3. Faça
-Observe o teste de cálculo de distância $D = |A + I - 1|$ em [`lab/01-modularity-metrics/modularity-metrics.test.ts`](file:///Users/andersonalves/dev/arch-lab/lab/01-modularity-metrics/modularity-metrics.test.ts).
+Observe o teste de cálculo de distância $D = |A + I - 1|$ em [`lab/01-modularity-metrics/modularity-metrics.test.ts`](../../lab/01-modularity-metrics/modularity-metrics.test.ts).
 
 ### 4. Observe
 O analisador classifica o pacote e sugere a refatoração imediata: extrair interfaces abstratas ($N_a$) para aumentar $A$, reduzindo a distância $D$ em direção à **Sequência Principal** ($A + I = 1$).
@@ -71,3 +71,9 @@ O analisador classifica o pacote e sugere a refatoração imediata: extrair inte
 Um pacote deve ser tão abstrato quanto é estável.
 Se um pacote é extremamente estável ($I \approx 0$, muitos dependem dele), ele DEVE ser composto majoritariamente de abstrações e interfaces ($A \approx 1$), permitindo que o comportamento seja estendido via polimorfismo sem necessitar de alteração no código fonte original (Open-Closed Principle).
 </details>
+
+---
+
+## ✅ Critério de pronto
+
+Você domina este módulo quando `npx vitest run lab/01-modularity-metrics/modularity-metrics.test.ts` passa, `npm run lint` valida sem erros e você explica, sem reabrir o gabarito, em que ponto a sua hipótese divergiu do observado em cada exercício.

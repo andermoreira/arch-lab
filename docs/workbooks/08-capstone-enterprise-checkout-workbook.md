@@ -21,7 +21,7 @@ Execute o teste do Capstone Corporativo:
 npx vitest run lab/08-capstone-enterprise-checkout/capstone.test.ts
 ```
 
-Inspecione a arquitetura em [`lab/08-capstone-enterprise-checkout/`](file:///Users/andersonalves/dev/arch-lab/lab/08-capstone-enterprise-checkout).
+Inspecione a arquitetura em [`lab/08-capstone-enterprise-checkout/`](../../lab/08-capstone-enterprise-checkout).
 
 ### 4. Observe
 Veja que todos os passos são concluídos com sucesso e os eventos gravados na Outbox corporativa estão prontos para envio aos sistemas de Logística e BI.
@@ -46,7 +46,7 @@ Executar o checkout simulando falha de pagamento e observar a compensação auto
 ### 2. Faça
 Execute o teste específico de falha com compensação no Capstone:
 ```bash
-npx vitest run -t "compensates" lab/08-capstone-enterprise-checkout/capstone.test.ts
+npx vitest run -t "compensate" lab/08-capstone-enterprise-checkout/capstone.test.ts
 ```
 
 ### 3. Observe
@@ -59,3 +59,9 @@ O estoque é revertido imediatamente ao estado inicial e o status do pedido tran
 **Excelência em Engenharia de Software:**
 Um sistema corporativo de nível Staff/Principal Engineer não se destaca apenas quando tudo funciona no "caminho feliz", mas sim pela elegância, determinismo e confiabilidade com que lida com falhas parciais de rede e inconsistências distribuídas.
 </details>
+
+---
+
+## ✅ Critério de pronto
+
+Você domina este módulo quando `npx vitest run lab/08-capstone-enterprise-checkout/capstone.test.ts` passa, `npm run lint` valida sem erros e você explica, sem reabrir o gabarito, em que ponto a sua hipótese divergiu do observado em cada exercício.

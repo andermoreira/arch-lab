@@ -21,7 +21,7 @@ Execute a suíte de testes de Sagas Distribuídas:
 npx vitest run lab/06-distributed-sagas/saga.test.ts
 ```
 
-Inspecione os arquivos em [`lab/06-distributed-sagas/`](file:///Users/andersonalves/dev/arch-lab/lab/06-distributed-sagas).
+Inspecione os arquivos em [`lab/06-distributed-sagas/`](../../lab/06-distributed-sagas).
 
 ### 4. Observe
 Veja os logs da Máquina de Estados da Saga:
@@ -55,7 +55,7 @@ Em um fluxo complexo com 8 passos de aprovação:
 - ( ) Orquestração é superior porque centraliza a Máquina de Estados, timeouts e diagnósticos de erro, evitando tempestades de eventos (*Event Vortex*) onde ninguém sabe em qual etapa a transação travou.
 
 ### 3. Faça
-Inspecione a implementação da máquina de estados em [`lab/06-distributed-sagas/saga-orchestrator.ts`](file:///Users/andersonalves/dev/arch-lab/lab/06-distributed-sagas/saga-orchestrator.ts).
+Inspecione a implementação da máquina de estados em [`lab/06-distributed-sagas/saga-orchestrator.ts`](../../lab/06-distributed-sagas/saga-orchestrator.ts).
 
 ### 4. Observe
 O orquestrador registra cada transição em seu log de auditoria, permitindo retries automáticos ou intervenção manual em caso de falha catastrófica de rede.
@@ -68,3 +68,9 @@ O orquestrador registra cada transição em seu log de auditoria, permitindo ret
 - **Coreografia:** Excelente para fluxos simples de 2 a 3 etapas com baixo acoplamento.
 - **Orquestração:** Mandatória para processos financeiros críticos com regras complexas de compensação e exigência de observabilidade ponta a ponta.
 </details>
+
+---
+
+## ✅ Critério de pronto
+
+Você domina este módulo quando `npx vitest run lab/06-distributed-sagas/saga.test.ts` passa, `npm run lint` valida sem erros e você explica, sem reabrir o gabarito, em que ponto a sua hipótese divergiu do observado em cada exercício.

@@ -21,7 +21,7 @@ Execute os testes do laboratório de Arquitetura Hexagonal:
 npx vitest run lab/02-hexagonal-architecture/hexagonal.test.ts
 ```
 
-Inspecione a estrutura de pastas em [`lab/02-hexagonal-architecture/`](file:///Users/andersonalves/dev/arch-lab/lab/02-hexagonal-architecture).
+Inspecione a estrutura de pastas em [`lab/02-hexagonal-architecture/`](../../lab/02-hexagonal-architecture).
 
 ### 4. Observe
 Veja que o mesmo caso de uso (`CreateOrderUseCase`) é executado contra o adaptador em memória (`InMemoryOrderRepository`) e mock de gateway de pagamento, executando em menos de 5ms com isolamento absoluto.
@@ -49,7 +49,7 @@ Se trocarmos o `MockPaymentGatewayAdapter` por um `StripePaymentGatewayAdapter`:
 - ( ) O arquivo `domain/order.ts` e o `application/create-order.service.ts` permanecerão 100% inalterados, pois ambos dependem apenas do contrato `PaymentGatewayPort`.
 
 ### 3. Faça
-Inspecione o serviço de aplicação em [`lab/02-hexagonal-architecture/application/create-order.service.ts`](file:///Users/andersonalves/dev/arch-lab/lab/02-hexagonal-architecture/application/create-order.service.ts).
+Inspecione o serviço de aplicação em [`lab/02-hexagonal-architecture/application/create-order.service.ts`](../../lab/02-hexagonal-architecture/application/create-order.service.ts).
 
 ### 4. Observe
 O construtor do serviço recebe apenas as interfaces de porta:
@@ -69,3 +69,9 @@ constructor(
 O código fonte só pode apontar **para dentro**, em direção aos casos de uso e entidades. Nada na camada interna pode saber nada sobre a camada externa.
 Isso garante independência de frameworks, testabilidade pura e independência de UI e banco de dados.
 </details>
+
+---
+
+## ✅ Critério de pronto
+
+Você domina este módulo quando `npx vitest run lab/02-hexagonal-architecture/hexagonal.test.ts` passa, `npm run lint` valida sem erros e você explica, sem reabrir o gabarito, em que ponto a sua hipótese divergiu do observado em cada exercício.
