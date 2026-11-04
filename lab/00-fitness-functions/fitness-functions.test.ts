@@ -105,4 +105,32 @@ describe('Fase 0: Architecture Fitness Functions & Governance', () => {
       expect(leaked).toContain('express');
     });
   });
+
+  describe('Dependency cycle detection (ADP)', () => {
+    it('reports the exact path of a cycle Orders -> Payments -> Shipping -> Orders', () => {
+      const cycles = FitnessRuleEngine.findDependencyCycles({
+        Orders: ['Payments'],
+        Payments: ['Shipping'],
+        Shipping: ['Orders'],
+      });
+
+      expect(cycles).toEqual([['Orders', 'Payments', 'Shipping', 'Orders']]);
+    });
+
+    it('returns no cycle for an acyclic dependency graph (a DAG)', () => {
+      const cycles = FitnessRuleEngine.findDependencyCycles({
+        Orders: ['Payments', 'Shipping'],
+        Payments: ['Shipping'],
+        Shipping: [],
+      });
+
+      expect(cycles).toEqual([]);
+    });
+
+    it('detects a self-dependency and ignores modules that only appear as targets', () => {
+      const cycles = FitnessRuleEngine.findDependencyCycles({ Billing: ['Billing', 'Ledger'] });
+
+      expect(cycles).toEqual([['Billing', 'Billing']]);
+    });
+  });
 });

@@ -141,4 +141,42 @@ export class FitnessRuleEngine {
 
     return violations;
   }
+
+  /**
+   * Finds dependency cycles in a module graph (`module -> modules it depends on`).
+   *
+   * DFS with vertex colouring: WHITE = unseen, GRAY = on the current path, BLACK = fully explored.
+   * Reaching a GRAY vertex closes a cycle; the path from that vertex to itself is reported, e.g.
+   * `['Orders', 'Payments', 'Shipping', 'Orders']`. Modules that only appear as targets have no
+   * outgoing edges. Each back edge yields one cycle, so a graph with overlapping cycles can report
+   * several (not necessarily every elementary cycle).
+   */
+  public static findDependencyCycles(graph: Record<string, readonly string[]>): string[][] {
+    const WHITE = 0;
+    const GRAY = 1;
+    const BLACK = 2;
+    const color = new Map<string, number>();
+    const cycles: string[][] = [];
+    const path: string[] = [];
+
+    const visit = (node: string): void => {
+      color.set(node, GRAY);
+      path.push(node);
+      for (const next of graph[node] ?? []) {
+        const state = color.get(next) ?? WHITE;
+        if (state === GRAY) {
+          cycles.push([...path.slice(path.indexOf(next)), next]);
+        } else if (state === WHITE) {
+          visit(next);
+        }
+      }
+      path.pop();
+      color.set(node, BLACK);
+    };
+
+    for (const node of Object.keys(graph)) {
+      if ((color.get(node) ?? WHITE) === WHITE) visit(node);
+    }
+    return cycles;
+  }
 }
