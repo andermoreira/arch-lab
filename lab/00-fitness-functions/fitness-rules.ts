@@ -39,24 +39,75 @@ export class FitnessRuleEngine {
 
   /**
    * Extracts all import/require statements from source code with line numbers.
+   *
+   * Um scanner de fronteiras arquiteturais precisa enxergar TODAS as formas de
+   * dependência entre módulos, não só o `import ... from` de uma linha. Um regex
+   * ingênuo (linha a linha) deixa passar violações reais:
+   *   - import multi-linha (`import {\n  A,\n} from 'pg'`)
+   *   - re-export que também é dependência (`export { X } from 'pg'`)
+   *   - import só de tipo (`import type { T } from 'pg'`)
+   *   - import dinâmico (`await import('pg')`)
+   *
+   * Estratégia: normalizamos os offsets em linhas uma vez e varremos o CONTEÚDO
+   * inteiro (não cada linha isolada) com regexes tolerantes a quebras de linha,
+   * mapeando cada match de volta para a linha onde o `import/export/require`
+   * começa. É a versão "análise de grafo de imports" prometida no AGENTS.md, sem
+   * puxar um parser de AST completo para dentro do lab.
    */
   public static extractImports(filePath: string): Array<{ line: number; importPath: string }> {
     const content = fs.readFileSync(filePath, 'utf-8');
-    const lines = content.split('\n');
+    return this.extractImportsFromSource(content);
+  }
+
+  /** Núcleo testável do extractImports, operando sobre o conteúdo cru. */
+  public static extractImportsFromSource(
+    content: string
+  ): Array<{ line: number; importPath: string }> {
     const imports: Array<{ line: number; importPath: string }> = [];
+    const seen = new Set<string>();
 
-    const importRegex = /(?:import\s+(?:[\w*\s{},]+from\s+)?['"]([^'"]+)['"]|require\(['"]([^'"]+)['"]\))/;
-
-    lines.forEach((lineText, index) => {
-      const match = importRegex.exec(lineText);
-      if (match) {
-        const importTarget = match[1] || match[2];
-        if (importTarget) {
-          imports.push({ line: index + 1, importPath: importTarget });
-        }
+    // Índices de início de cada linha para converter offset -> nº da linha.
+    const lineStarts: number[] = [0];
+    for (let i = 0; i < content.length; i += 1) {
+      if (content[i] === '\n') lineStarts.push(i + 1);
+    }
+    const lineOf = (offset: number): number => {
+      // Busca binária pela última linha cujo início <= offset.
+      let lo = 0;
+      let hi = lineStarts.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1;
+        if (lineStarts[mid] <= offset) lo = mid;
+        else hi = mid - 1;
       }
-    });
+      return lo + 1;
+    };
 
+    const record = (offset: number, importPath: string): void => {
+      const line = lineOf(offset);
+      const key = `${line}::${importPath}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        imports.push({ line, importPath });
+      }
+    };
+
+    // `import ... from '...'` e `export ... from '...'` (o `[\s\S]*?` cruza
+    // quebras de linha, cobrindo imports/re-exports multi-linha e `import type`).
+    const staticRegex = /\b(?:import|export)\b[\s\S]*?\bfrom\s*['"]([^'"]+)['"]/g;
+    // `import '...'` (side-effect only, sem `from`).
+    const bareImportRegex = /\bimport\s*['"]([^'"]+)['"]/g;
+    // `import('...')` dinâmico e `require('...')`.
+    const dynamicRegex = /\b(?:import|require)\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+
+    for (const regex of [staticRegex, bareImportRegex, dynamicRegex]) {
+      let match: RegExpExecArray | null;
+      while ((match = regex.exec(content)) !== null) {
+        record(match.index, match[1]);
+      }
+    }
+
+    imports.sort((a, b) => a.line - b.line);
     return imports;
   }
 
@@ -89,5 +140,43 @@ export class FitnessRuleEngine {
     }
 
     return violations;
+  }
+
+  /**
+   * Finds dependency cycles in a module graph (`module -> modules it depends on`).
+   *
+   * DFS with vertex colouring: WHITE = unseen, GRAY = on the current path, BLACK = fully explored.
+   * Reaching a GRAY vertex closes a cycle; the path from that vertex to itself is reported, e.g.
+   * `['Orders', 'Payments', 'Shipping', 'Orders']`. Modules that only appear as targets have no
+   * outgoing edges. Each back edge yields one cycle, so a graph with overlapping cycles can report
+   * several (not necessarily every elementary cycle).
+   */
+  public static findDependencyCycles(graph: Record<string, readonly string[]>): string[][] {
+    const WHITE = 0;
+    const GRAY = 1;
+    const BLACK = 2;
+    const color = new Map<string, number>();
+    const cycles: string[][] = [];
+    const path: string[] = [];
+
+    const visit = (node: string): void => {
+      color.set(node, GRAY);
+      path.push(node);
+      for (const next of graph[node] ?? []) {
+        const state = color.get(next) ?? WHITE;
+        if (state === GRAY) {
+          cycles.push([...path.slice(path.indexOf(next)), next]);
+        } else if (state === WHITE) {
+          visit(next);
+        }
+      }
+      path.pop();
+      color.set(node, BLACK);
+    };
+
+    for (const node of Object.keys(graph)) {
+      if ((color.get(node) ?? WHITE) === WHITE) visit(node);
+    }
+    return cycles;
   }
 }

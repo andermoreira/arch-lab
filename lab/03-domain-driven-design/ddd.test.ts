@@ -25,6 +25,33 @@ describe('Fase 3: Domain-Driven Design (DDD) Strategic & Tactical', () => {
       expect(() => new EmailAddress('invalid-email-address')).toThrow('Invalid email address format');
       expect(() => new Sku('!@#')).toThrow('Invalid SKU format');
     });
+
+    it('should actually enforce immutability: mutating a frozen Money throws in strict mode', () => {
+      'use strict';
+      const money = new Money(100.5, 'BRL');
+
+      // O VO é Object.freeze: tentar mudar um campo em modo estrito lança
+      // TypeError. Isto PROVA a imutabilidade, em vez de só afirmá-la no nome.
+      expect(() => {
+        (money as unknown as { amount: number }).amount = 999;
+      }).toThrow(TypeError);
+
+      expect(money.amount).toBe(100.5); // permanece intacto
+      expect(Object.isFrozen(money)).toBe(true);
+    });
+
+    it('should avoid floating-point drift that naive number arithmetic suffers from', () => {
+      // Aritmética ingênua de ponto flutuante deriva:
+      expect(0.1 + 0.2).not.toBe(0.3); // 0.30000000000000004
+
+      // Money arredonda para centavos no construtor, mantendo o valor exato:
+      const total = new Money(0.1, 'BRL').add(new Money(0.2, 'BRL'));
+      expect(total.amount).toBe(0.3);
+
+      // E numa cadeia de multiplicação (19.99 * 3 = 59.97000000000001 cru):
+      const line = new Money(19.99, 'BRL').multiply(3);
+      expect(line.amount).toBe(59.97);
+    });
   });
 
   describe('Aggregate Root & Invariants', () => {
@@ -53,6 +80,23 @@ describe('Fase 3: Domain-Driven Design (DDD) Strategic & Tactical', () => {
     it('should reject placing an empty order with zero items', () => {
       const order = new OrderAggregate('ord_002', new EmailAddress('bob@example.com'));
       expect(() => order.place()).toThrow('Cannot place an empty order with zero items');
+    });
+
+    it('should emit an OrderCancelled event on cancellation (symmetry with place)', () => {
+      const order = new OrderAggregate('ord_003', new EmailAddress('carol@example.com'), 'BRL');
+      order.addItem(new Sku('BOOK-DDD'), new Money(80.0, 'BRL'), 1);
+      order.place();
+      order.clearDomainEvents(); // descarta o OrderPlaced para isolar o cancelamento
+
+      order.cancel('Customer requested refund');
+
+      expect(order.state).toBe('CANCELLED');
+      expect(order.domainEvents).toHaveLength(1);
+      expect(order.domainEvents[0].eventType).toBe('OrderCancelled');
+      expect(order.domainEvents[0].aggregateId).toBe('ord_003');
+
+      // Invariante: não é possível cancelar duas vezes.
+      expect(() => order.cancel()).toThrow('already cancelled');
     });
   });
 

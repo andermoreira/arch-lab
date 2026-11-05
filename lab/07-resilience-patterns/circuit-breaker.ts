@@ -42,16 +42,27 @@ export class CircuitBreaker {
   }
 
   private handleSuccess(): void {
+    // Uma chamada de teste bem-sucedida em HALF_OPEN fecha o circuito (recuperação).
+    // Em qualquer estado, um sucesso zera o contador de falhas consecutivas.
     if (this._state === 'HALF_OPEN') {
       this._state = 'CLOSED';
-      this.failureCount = 0;
+      this.lastStateChangeTimestamp = Date.now();
     }
     this.failureCount = 0;
   }
 
   private handleFailure(): void {
+    // Uma única falha durante a chamada de teste em HALF_OPEN reabre o circuito
+    // imediatamente, sem esperar atingir o threshold novamente.
+    if (this._state === 'HALF_OPEN') {
+      this._state = 'OPEN';
+      this.failureCount = this.options.failureThreshold;
+      this.lastStateChangeTimestamp = Date.now();
+      return;
+    }
+
     this.failureCount += 1;
-    if (this.failureCount >= this.options.failureThreshold || this._state === 'HALF_OPEN') {
+    if (this.failureCount >= this.options.failureThreshold) {
       this._state = 'OPEN';
       this.lastStateChangeTimestamp = Date.now();
     }

@@ -2,6 +2,7 @@ import { Money } from '../value-objects/money.vo.js';
 import { EmailAddress } from '../value-objects/email.vo.js';
 import { Sku } from '../value-objects/sku.vo.js';
 import { OrderPlacedEvent, type DomainEvent } from '../events/order-placed.event.js';
+import { OrderCancelledEvent } from '../events/order-cancelled.event.js';
 
 export interface OrderLineItem {
   sku: Sku;
@@ -76,10 +77,13 @@ export class OrderAggregate {
     );
   }
 
-  public cancel(): void {
+  public cancel(reason: string = 'Unspecified'): void {
     if (this._state === 'CANCELLED') {
       throw new Error('Order is already cancelled');
     }
     this._state = 'CANCELLED';
+
+    // Simetria com place(): mudança de estado emite evento de domínio.
+    this._domainEvents.push(new OrderCancelledEvent(this.id, reason));
   }
 }

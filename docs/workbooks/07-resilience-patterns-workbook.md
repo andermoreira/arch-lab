@@ -21,7 +21,7 @@ Execute os testes de resiliência:
 npx vitest run lab/07-resilience-patterns/resilience.test.ts
 ```
 
-Inspecione o Circuit Breaker em [`lab/07-resilience-patterns/circuit-breaker.ts`](file:///Users/andersonalves/dev/arch-lab/lab/07-resilience-patterns/circuit-breaker.ts).
+Inspecione o Circuit Breaker em [`lab/07-resilience-patterns/circuit-breaker.ts`](../../lab/07-resilience-patterns/circuit-breaker.ts).
 
 ### 4. Observe
 Veja as transições de estado:
@@ -51,7 +51,7 @@ Se o cache expirar e 50 threads chegarem simultaneamente:
 - ( ) O mecanismo de **Single-Flight** executará a query apenas uma vez e compartilhará a mesma Promise com as outras 49 chamadas, reduzindo a carga do banco em 98%.
 
 ### 3. Faça
-Inspecione o Single-Flight Cache em [`lab/07-resilience-patterns/single-flight-cache.ts`](file:///Users/andersonalves/dev/arch-lab/lab/07-resilience-patterns/single-flight-cache.ts).
+Inspecione o Single-Flight Cache em [`lab/07-resilience-patterns/single-flight-cache.ts`](../../lab/07-resilience-patterns/single-flight-cache.ts).
 
 ### 4. Observe
 O teste comprova que o contador de queries no banco executa exatamente uma única vez, resolvendo todas as 50 requisições simultâneas.
@@ -63,3 +63,9 @@ O teste comprova que o contador de queries no banco executa exatamente uma únic
 **O Efeito Thundering Herd:**
 Em sistemas de altíssimo tráfego, a simples expiração de uma chave de cache popular pode derrubar o banco de dados principal se dezenas de requisições tentarem repovoá-la ao mesmo tempo. Single-Flight garante coalescência de chamadas concorrentes.
 </details>
+
+---
+
+## ✅ Critério de pronto
+
+Você domina este módulo quando `npx vitest run lab/07-resilience-patterns/resilience.test.ts` passa, `npm run lint` valida sem erros e você explica, sem reabrir o gabarito, em que ponto a sua hipótese divergiu do observado em cada exercício.

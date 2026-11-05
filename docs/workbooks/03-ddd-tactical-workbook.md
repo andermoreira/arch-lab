@@ -25,7 +25,7 @@ Execute a suíte de testes de DDD:
 npx vitest run lab/03-domain-driven-design/ddd.test.ts
 ```
 
-Inspecione os Value Objects em [`lab/03-domain-driven-design/domain/value-objects/`](file:///Users/andersonalves/dev/arch-lab/lab/03-domain-driven-design/domain/value-objects).
+Inspecione os Value Objects em [`lab/03-domain-driven-design/domain/value-objects/`](../../lab/03-domain-driven-design/domain/value-objects).
 
 ### 4. Observe
 Veja que `Money`, `Sku` e `EmailAddress` são **imutáveis** e **auto-validados**:
@@ -56,7 +56,7 @@ Se tentarmos modificar diretamente a lista de itens de um pedido sem passar pelo
 - ( ) A lista de itens é exposta como `readonly`, forçando toda mutação a passar por `order.addItem(...)`, onde as regras de negócio e cálculo de total são reavaliadas atomicamente.
 
 ### 3. Faça
-Inspecione o Aggregate Root em [`lab/03-domain-driven-design/domain/aggregates/order.aggregate.ts`](file:///Users/andersonalves/dev/arch-lab/lab/03-domain-driven-design/domain/aggregates/order.aggregate.ts).
+Inspecione o Aggregate Root em [`lab/03-domain-driven-design/domain/aggregates/order.aggregate.ts`](../../lab/03-domain-driven-design/domain/aggregates/order.aggregate.ts).
 
 ### 4. Observe
 Veja que a cada mutação válida, o Aggregate Root acumula um **Domain Event** (`OrderPlacedEvent`) para ser publicado após o commit transacional.
@@ -70,3 +70,9 @@ Veja que a cada mutação válida, o Aggregate Root acumula um **Domain Event** 
 2. **Referencie outros Agregados apenas por Identidade (ID):** Nunca mantenha referências diretas de objetos entre agregados distintos.
 3. **Um Agregado = Uma Transação de Banco:** Cada transação no banco de dados deve alterar apenas uma única instância de Aggregate Root.
 </details>
+
+---
+
+## ✅ Critério de pronto
+
+Você domina este módulo quando `npx vitest run lab/03-domain-driven-design/ddd.test.ts` passa, `npm run lint` valida sem erros e você explica, sem reabrir o gabarito, em que ponto a sua hipótese divergiu do observado em cada exercício.

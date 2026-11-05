@@ -1,4 +1,7 @@
-import { Order } from '../../domain/order.js';
+// Nota pedagógica: uma porta primária (driving port) expõe apenas o contrato
+// de entrada em termos de DTOs/primitivos. Ela NÃO depende do modelo de domínio
+// (Order) — quem faz essa tradução é o serviço de aplicação. Manter a entidade de
+// domínio fora daqui preserva a Regra da Dependência apontando para o núcleo.
 
 export interface CreateOrderCommand {
   customerId: string;

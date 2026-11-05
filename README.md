@@ -6,6 +6,9 @@ Bem-vindo ao **arch-lab**, um laboratório prático de engenharia de software e 
 
 ## 🎯 Filosofia Pedagógica
 
+> [!TIP]
+> **Primeira vez estudando Arquitetura de Software?** Comece pelo **[Guia para Iniciantes](docs/INICIANTE.md)** para entender os conceitos através de analogias intuitivas (edifícios, tomadas, disjuntores, pacotes lacrados) e rodar seu primeiro teste arquitetural em 5 minutos!
+
 O **arch-lab** rejeita o aprendizado puramente teórico de arquitetura ("desenhar caixinhas em slides"). Nosso método é fundamentado em quatro pilares inegociáveis:
 
 1. **Fenômeno antes da Definição:** Você vê o sistema falhar, a concorrência travar ou a perda de dados ocorrer antes da formalização teórica do padrão.
@@ -19,15 +22,15 @@ O **arch-lab** rejeita o aprendizado puramente teórico de arquitetura ("desenha
 
 | Fase | Tema Central | Problema Prático Resolvido | Entregável no `lab/` |
 |---|---|---|---|
-| **0** | **O Papel do Arquiteto & Fitness Functions** | Regressão arquitetural silenciosa e acoplamento indevido | [`lab/00-fitness-functions/`](file:///Users/andersonalves/dev/arch-lab/lab/00-fitness-functions) |
-| **1** | **Modularidade & Métricas de Martin** | Dependências cíclicas e instabilidade estrutural | [`lab/01-modularity-metrics/`](file:///Users/andersonalves/dev/arch-lab/lab/01-modularity-metrics) |
-| **2** | **Arquitetura Hexagonal & Clean Arch** | Acoplamento *Database-Driven* travando regras de negócio | [`lab/02-hexagonal-architecture/`](file:///Users/andersonalves/dev/arch-lab/lab/02-hexagonal-architecture) |
-| **3** | **DDD Estratégico & Tático** | Modelo Anêmico e violação de invariantes transacionais | [`lab/03-domain-driven-design/`](file:///Users/andersonalves/dev/arch-lab/lab/03-domain-driven-design) |
-| **4** | **CQRS & Event Sourcing** | Contenção de escrita em relatórios e auditoria contábil | [`lab/04-cqrs-event-sourcing/`](file:///Users/andersonalves/dev/arch-lab/lab/04-cqrs-event-sourcing) |
-| **5** | **EDA & Transactional Outbox** | Perda de mensagens por falha de dual-write | [`lab/05-eda-and-outbox/`](file:///Users/andersonalves/dev/arch-lab/lab/05-eda-and-outbox) |
-| **6** | **Transações Distribuídas & Sagas** | Dinheiro duplicado / estoque órfão em microserviços | [`lab/06-distributed-sagas/`](file:///Users/andersonalves/dev/arch-lab/lab/06-distributed-sagas) |
-| **7** | **Resiliência & Padrões Distribuídos** | Efeito dominó de falhas e *Thundering Herd* no cache | [`lab/07-resilience-patterns/`](file:///Users/andersonalves/dev/arch-lab/lab/07-resilience-patterns) |
-| **8** | **Capstone: E-Commerce Corporativo** | Checkout distribuído multi-contexto com compensação | [`lab/08-capstone-enterprise-checkout/`](file:///Users/andersonalves/dev/arch-lab/lab/08-capstone-enterprise-checkout) |
+| **0** | **O Papel do Arquiteto & Fitness Functions** | Regressão arquitetural silenciosa e acoplamento indevido | [`lab/00-fitness-functions/`](lab/00-fitness-functions) |
+| **1** | **Modularidade & Métricas de Martin** | Dependências cíclicas e instabilidade estrutural | [`lab/01-modularity-metrics/`](lab/01-modularity-metrics) |
+| **2** | **Arquitetura Hexagonal & Clean Arch** | Acoplamento *Database-Driven* travando regras de negócio | [`lab/02-hexagonal-architecture/`](lab/02-hexagonal-architecture) |
+| **3** | **DDD Estratégico & Tático** | Modelo Anêmico e violação de invariantes transacionais | [`lab/03-domain-driven-design/`](lab/03-domain-driven-design) |
+| **4** | **CQRS & Event Sourcing** | Contenção de escrita em relatórios e auditoria contábil | [`lab/04-cqrs-event-sourcing/`](lab/04-cqrs-event-sourcing) |
+| **5** | **EDA & Transactional Outbox** | Perda de mensagens por falha de dual-write | [`lab/05-eda-and-outbox/`](lab/05-eda-and-outbox) |
+| **6** | **Transações Distribuídas & Sagas** | Dinheiro duplicado / estoque órfão em microserviços | [`lab/06-distributed-sagas/`](lab/06-distributed-sagas) |
+| **7** | **Resiliência & Padrões Distribuídos** | Efeito dominó de falhas e *Thundering Herd* no cache | [`lab/07-resilience-patterns/`](lab/07-resilience-patterns) |
+| **8** | **Capstone: E-Commerce Corporativo** | Checkout distribuído multi-contexto com compensação | [`lab/08-capstone-enterprise-checkout/`](lab/08-capstone-enterprise-checkout) |
 
 ---
 
@@ -69,9 +72,9 @@ make docker-down
 
 ## 📚 Estrutura da Documentação
 
-- **Jornada Linear Guiada:** [`docs/journey/`](file:///Users/andersonalves/dev/arch-lab/docs/journey)
-- **Workbooks Investigativos:** [`docs/workbooks/`](file:///Users/andersonalves/dev/arch-lab/docs/workbooks)
-- **Catálogo de Referência Técnica & C4:** [`docs/reference/`](file:///Users/andersonalves/dev/arch-lab/docs/reference)
-- **Architectural Decision Records:** [`adr/`](file:///Users/andersonalves/dev/arch-lab/adr)
-- **Glossário de Modelos Mentais & Métricas:** [`docs/GLOSSARIO.md`](file:///Users/andersonalves/dev/arch-lab/docs/GLOSSARIO.md)
-- **Rubrica de Auditoria Pedagógica:** [`docs/PEDAGOGICAL-AUDIT.md`](file:///Users/andersonalves/dev/arch-lab/docs/PEDAGOGICAL-AUDIT.md)
+- **Jornada Linear Guiada:** [`docs/journey/`](docs/journey)
+- **Workbooks Investigativos:** [`docs/workbooks/`](docs/workbooks)
+- **Catálogo de Referência Técnica & C4:** [`docs/reference/`](docs/reference)
+- **Architectural Decision Records:** [`adr/`](adr)
+- **Glossário de Modelos Mentais & Métricas:** [`docs/GLOSSARIO.md`](docs/GLOSSARIO.md)
+- **Rubrica de Auditoria Pedagógica:** [`docs/PEDAGOGICAL-AUDIT.md`](docs/PEDAGOGICAL-AUDIT.md)

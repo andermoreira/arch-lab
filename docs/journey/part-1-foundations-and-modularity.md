@@ -32,8 +32,13 @@ graph TD
   4. *Code:* Classes, interfaces e diagramas de sequência.
 
 ### Fitness Functions: Arquitetura como Teste Automatizado
-Para impedir a erosão arquitetural, usamos **Fitness Functions**: testes unitários que inspecionam o grafo de importações e a AST do código-fonte.
+Para impedir a erosão arquitetural, usamos **Fitness Functions**: testes unitários que inspecionam os imports extraídos do código-fonte e o grafo de dependências entre módulos.
 Se um desenvolvedor importar `pg` ou `express` dentro de uma entidade de domínio, o teste falha no CI.
+
+### Modelo Mental / Analogia da Vida Real
+> **Analogia:**
+> - **Fitness Function como o Inspetor de Incêndio:** Imagine um fiscal que visita o canteiro de obras toda semana com uma trena. Se alguém construir uma parede bloqueando uma saída de emergência ou usar fiação fora da especificação da norma técnica, a obra é interditada na hora. As fitness functions são fiscais automatizados no CI que impedem que alguém "fure o cano mestre" do domínio por pressa.
+> - **C4 Model como o Google Maps:** Você começa vendo o continente inteiro (*Level 1: System Context*), aproxima o zoom para ver os bairros e cidades (*Level 2: Containers*), dá zoom na rua para ver os prédios e comércios (*Level 3: Components*) e, finalmente, entra na sala do prédio para ver as mesas e móveis (*Level 4: Code*). Ninguém tenta navegar de um estado para o outro olhando a foto das mesas!
 
 ---
 
@@ -72,12 +77,17 @@ Dada uma coleção de pacotes ou módulos:
 - **Zona da Dor ($A \approx 0, I \approx 0$):** Código concreto do qual muitos dependem. Alterar é arriscado e doloroso.
 - **Zona da Inutilidade ($A \approx 1, I \approx 1$):** Abstrações puras que ninguém consome. Complexidade acidental.
 
+### Modelo Mental / Analogia da Vida Real
+> **Analogia:**
+> - **Instabilidade ($I$):** Uma pipa ao vento versus uma rocha de 50 toneladas. A pipa ($I = 1$) se move facilmente sem afetar o solo (fácil de mudar, ninguém se apoia nela). A rocha ($I = 0$) sustenta as vigas do viaduto: se você tentar empurrá-la ou perfurá-la, o viaduto inteiro pode colapsar.
+> - **A Sequência Principal:** Se um módulo for uma rocha de fundação ($I = 0$), ele precisa ser feito de contratos abstratos ($A = 1$, interfaces) para permitir flexibilidade sem quebrar quem se apoia nele. Concreto rígido sem abstrações na fundação cria a temida *Zona da Dor* (ninguém tem coragem de mexer).
+
 ---
 
 ## 🔬 Checkpoint Prático da Parte 1
 
 Execute o laboratório e complete os workbooks:
-- Workbook: [`docs/workbooks/00-fitness-functions-workbook.md`](file:///Users/andersonalves/dev/arch-lab/docs/workbooks/00-fitness-functions-workbook.md)
-- Lab: [`lab/00-fitness-functions/`](file:///Users/andersonalves/dev/arch-lab/lab/00-fitness-functions)
-- Workbook: [`docs/workbooks/01-modularity-metrics-workbook.md`](file:///Users/andersonalves/dev/arch-lab/docs/workbooks/01-modularity-metrics-workbook.md)
-- Lab: [`lab/01-modularity-metrics/`](file:///Users/andersonalves/dev/arch-lab/lab/01-modularity-metrics)
+- Workbook: [`docs/workbooks/00-fitness-functions-workbook.md`](../workbooks/00-fitness-functions-workbook.md)
+- Lab: [`lab/00-fitness-functions/`](../../lab/00-fitness-functions)
+- Workbook: [`docs/workbooks/01-modularity-metrics-workbook.md`](../workbooks/01-modularity-metrics-workbook.md)
+- Lab: [`lab/01-modularity-metrics/`](../../lab/01-modularity-metrics)

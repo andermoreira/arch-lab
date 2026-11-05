@@ -9,7 +9,12 @@ export type SagaStatus =
   | 'SHIPPING_SCHEDULED'
   | 'COMPLETED'
   | 'COMPENSATING'
-  | 'COMPENSATED_FAILED';
+  // Rollback executado com sucesso: o sistema voltou a um estado consistente.
+  | 'COMPENSATED'
+  // Uma transação compensatória FALHOU: o sistema ficou inconsistente e exige
+  // intervenção (dead-letter / retry / semantic lock). É o caso mais difícil das
+  // sagas — por isso é um estado terminal explícito, não um detalhe escondido.
+  | 'COMPENSATION_FAILED';
 
 export interface CheckoutSagaInput {
   orderId: string;
@@ -26,6 +31,8 @@ export interface SagaExecutionResult {
   executedSteps: string[];
   compensatedSteps: string[];
   failureReason?: string;
+  /** Passos de compensação que falharam (exigem intervenção manual). */
+  failedCompensations?: string[];
 }
 
 export class OrderFulfillmentSagaOrchestrator {
@@ -73,26 +80,39 @@ export class OrderFulfillmentSagaOrchestrator {
 
       return {
         sagaId,
-        status: 'COMPLETED',
+        status, // usa o estado rastreado ('COMPLETED'), não um literal solto
         executedSteps,
         compensatedSteps,
       };
     } catch (error: unknown) {
       status = 'COMPENSATING';
       const reason = error instanceof Error ? error.message : 'Unknown error';
+      const failedCompensations: string[] = [];
 
-      // Backward Compensations:
+      // Compensações em ordem reversa (backward recovery). Cada compensação é
+      // envolvida em try/catch: numa saga real, uma compensação também pode
+      // falhar (o gateway de refund pode estar fora do ar). Nesse caso o
+      // sistema NÃO volta a um estado consistente sozinho — registramos o passo
+      // como pendente de intervenção em vez de fingir que o rollback foi limpo.
       if (paymentTransactionId) {
-        await this.paymentService.refund(paymentTransactionId);
-        compensatedSteps.push('REFUND_PAYMENT');
+        try {
+          await this.paymentService.refund(paymentTransactionId);
+          compensatedSteps.push('REFUND_PAYMENT');
+        } catch {
+          failedCompensations.push('REFUND_PAYMENT');
+        }
       }
 
       if (inventoryReserved) {
-        await this.inventoryService.release(input.sku, input.quantity);
-        compensatedSteps.push('RELEASE_INVENTORY');
+        try {
+          await this.inventoryService.release(input.sku, input.quantity);
+          compensatedSteps.push('RELEASE_INVENTORY');
+        } catch {
+          failedCompensations.push('RELEASE_INVENTORY');
+        }
       }
 
-      status = 'COMPENSATED_FAILED';
+      status = failedCompensations.length > 0 ? 'COMPENSATION_FAILED' : 'COMPENSATED';
 
       return {
         sagaId,
@@ -100,6 +120,7 @@ export class OrderFulfillmentSagaOrchestrator {
         executedSteps,
         compensatedSteps,
         failureReason: reason,
+        ...(failedCompensations.length > 0 ? { failedCompensations } : {}),
       };
     }
   }

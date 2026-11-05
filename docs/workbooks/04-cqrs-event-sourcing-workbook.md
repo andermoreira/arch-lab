@@ -21,7 +21,7 @@ Execute o teste do laboratório CQRS / Event Sourcing:
 npx vitest run lab/04-cqrs-event-sourcing/cqrs-event-sourcing.test.ts
 ```
 
-Inspecione a implementação do Event Store em [`lab/04-cqrs-event-sourcing/store/event-store.ts`](file:///Users/andersonalves/dev/arch-lab/lab/04-cqrs-event-sourcing/store/event-store.ts).
+Inspecione a implementação do Event Store em [`lab/04-cqrs-event-sourcing/store/event-store.ts`](../../lab/04-cqrs-event-sourcing/store/event-store.ts).
 
 ### 4. Observe
 Veja o histórico de eventos gerados:
@@ -54,7 +54,7 @@ Se duas requisições lerem a conta na versão 3 e tentarem gravar novos eventos
 - ( ) A primeira requisição terá sucesso (avançando a stream para a versão 4) e a segunda será rejeitada com erro `ConcurrencyException: Conflito de versão esperada`.
 
 ### 3. Faça
-Inspecione o método `appendEvents` em [`lab/04-cqrs-event-sourcing/store/event-store.ts`](file:///Users/andersonalves/dev/arch-lab/lab/04-cqrs-event-sourcing/store/event-store.ts).
+Inspecione o método `appendEvents` em [`lab/04-cqrs-event-sourcing/store/event-store.ts`](../../lab/04-cqrs-event-sourcing/store/event-store.ts).
 
 ### 4. Observe
 O controle otimista de versão impede o problema de *Lost Update* sem necessidade de locks pessimistas bloqueantes no banco de dados.
@@ -67,3 +67,9 @@ O controle otimista de versão impede o problema de *Lost Update* sem necessidad
 - **Command Side (Escrita):** Otimizado para invariantes, integridade e append-only de alta velocidade.
 - **Query Side (Leitura):** Ouve os eventos e atualiza tabelas desnormalizadas ou índices no Redis/Elasticsearch (`AccountBalanceProjection`), permitindo leituras com $O(1)$ sem JOINs pesados.
 </details>
+
+---
+
+## ✅ Critério de pronto
+
+Você domina este módulo quando `npx vitest run lab/04-cqrs-event-sourcing/cqrs-event-sourcing.test.ts` passa, `npm run lint` valida sem erros e você explica, sem reabrir o gabarito, em que ponto a sua hipótese divergiu do observado em cada exercício.

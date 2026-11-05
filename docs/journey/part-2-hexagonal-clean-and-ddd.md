@@ -50,6 +50,11 @@ graph LR
     EMAIL -.->|implements| DP2
 ```
 
+### Modelo Mental / Analogia da Vida Real
+> **Analogia:**
+> - **Portas & Adaptadores como uma Televisão Moderna:** A TV possui entradas HDMI, portas USB e antena física (as *Portas*). A TV não sabe nem se importa se você conectou um PlayStation 5, um Chromecast ou um notebook antigo. Cada dispositivo tem o seu cabo que se encaixa no padrão da porta (o *Adaptador*). Se você trocar o videogame por uma Apple TV, a tela do televisor continua funcionando normalmente sem precisar abrir a carcaça da TV para ressoldar a placa-mãe.
+> - **Inversão de Dependência:** Em vez da regra de negócio "correr atrás" do banco de dados, o domínio estende uma tomada na parede e diz: *"Quem quiser guardar pedidos para mim deve respeitar essa interface `OrderRepositoryPort`"*.
+
 ---
 
 ## 2. Fase 3: Domain-Driven Design (DDD) Estratégico & Tático
@@ -70,12 +75,17 @@ No **Modelo Rico**:
 3. **Aggregate Root:** A única porta de entrada para manipular entidades filhas, garantindo **invariantes transacionais** em 100% do tempo.
 4. **Domain Events:** Emissão de fatos que aconteceram no passado (`OrderPlacedEvent`).
 
+### Modelo Mental / Analogia da Vida Real
+> **Analogia:**
+> - **Aggregate Root como o Gerente do Banco:** Você nunca entra na tesouraria do banco e mexe diretamente nos maços de dinheiro das gavetas (entidades filhas). Você fala exclusivamente com o caixa ou gerente na bancada (*Aggregate Root*). O gerente confere se há saldo, valida a assinatura (invariantes de negócio) e só então executa a movimentação interna.
+> - **Value Object como uma Nota de 100 Reais:** Duas notas de 100 reais limpas têm exatamente o mesmo valor e utilidade prática; se você trocar uma pela outra, nada muda (sem identidade própria). Se você tentar rasgar a nota no meio ou pintar um zero extra a caneta (tentar criar um estado inválido), o sistema rejeita imediatamente no construtor.
+
 ---
 
 ## 🔬 Checkpoint Prático da Parte 2
 
 Execute o laboratório e complete os workbooks:
-- Workbook: [`docs/workbooks/02-hexagonal-architecture-workbook.md`](file:///Users/andersonalves/dev/arch-lab/docs/workbooks/02-hexagonal-architecture-workbook.md)
-- Lab: [`lab/02-hexagonal-architecture/`](file:///Users/andersonalves/dev/arch-lab/lab/02-hexagonal-architecture)
-- Workbook: [`docs/workbooks/03-ddd-tactical-workbook.md`](file:///Users/andersonalves/dev/arch-lab/docs/workbooks/03-ddd-tactical-workbook.md)
-- Lab: [`lab/03-domain-driven-design/`](file:///Users/andersonalves/dev/arch-lab/lab/03-domain-driven-design)
+- Workbook: [`docs/workbooks/02-hexagonal-architecture-workbook.md`](../workbooks/02-hexagonal-architecture-workbook.md)
+- Lab: [`lab/02-hexagonal-architecture/`](../../lab/02-hexagonal-architecture)
+- Workbook: [`docs/workbooks/03-ddd-tactical-workbook.md`](../workbooks/03-ddd-tactical-workbook.md)
+- Lab: [`lab/03-domain-driven-design/`](../../lab/03-domain-driven-design)

@@ -1,9 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { CircuitBreaker, CircuitBreakerOpenError } from './circuit-breaker.js';
+import { retryWithBackoff, RetryExhaustedError } from './retry-with-backoff.js';
 import { BulkheadIsolation, BulkheadFullError } from './bulkhead.js';
 import { SingleFlightCache } from './single-flight-cache.js';
 
 describe('Fase 7: Resilience & Distributed Patterns (Circuit Breaker, Bulkhead, Cache Stampede)', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   describe('Circuit Breaker', () => {
     it('should transition from CLOSED to OPEN after consecutive failures and fail fast', async () => {
       const breaker = new CircuitBreaker({ failureThreshold: 3, cooldownPeriodMs: 100 });
@@ -32,6 +37,48 @@ describe('Fase 7: Resilience & Distributed Patterns (Circuit Breaker, Bulkhead, 
       ).rejects.toThrow(CircuitBreakerOpenError);
 
       expect(actionInvoked).toBe(false); // Action was protected
+    });
+
+    it('should recover through HALF_OPEN and CLOSE after the cooldown when the trial call succeeds', async () => {
+      vi.useFakeTimers();
+      const breaker = new CircuitBreaker({ failureThreshold: 2, cooldownPeriodMs: 1000 });
+      const failingCall = () => Promise.reject(new Error('Downstream 503'));
+
+      // Trip the circuit to OPEN.
+      await expect(breaker.execute(failingCall)).rejects.toThrow();
+      await expect(breaker.execute(failingCall)).rejects.toThrow();
+      expect(breaker.state).toBe('OPEN');
+
+      // Before the cooldown elapses the breaker stays OPEN and fails fast.
+      vi.advanceTimersByTime(999);
+      expect(breaker.state).toBe('OPEN');
+
+      // After the cooldown it moves to HALF_OPEN to allow a single trial call.
+      vi.advanceTimersByTime(1);
+      expect(breaker.state).toBe('HALF_OPEN');
+
+      // A successful trial call closes the circuit again.
+      await expect(breaker.execute(async () => 'recovered')).resolves.toBe('recovered');
+      expect(breaker.state).toBe('CLOSED');
+    });
+
+    it('should re-OPEN immediately if the HALF_OPEN trial call fails again', async () => {
+      vi.useFakeTimers();
+      const breaker = new CircuitBreaker({ failureThreshold: 2, cooldownPeriodMs: 1000 });
+      const failingCall = () => Promise.reject(new Error('Still down'));
+
+      await expect(breaker.execute(failingCall)).rejects.toThrow();
+      await expect(breaker.execute(failingCall)).rejects.toThrow();
+      expect(breaker.state).toBe('OPEN');
+
+      // Cooldown elapses -> HALF_OPEN.
+      vi.advanceTimersByTime(1000);
+      expect(breaker.state).toBe('HALF_OPEN');
+
+      // The single trial call fails -> circuit trips back to OPEN without
+      // waiting to reach the threshold again.
+      await expect(breaker.execute(failingCall)).rejects.toThrow();
+      expect(breaker.state).toBe('OPEN');
     });
   });
 
@@ -80,6 +127,80 @@ describe('Fase 7: Resilience & Distributed Patterns (Circuit Breaker, Bulkhead, 
 
       // Crucial verification: ONLY 1 single DB query hit the database!
       expect(cache.databaseQueryCount).toBe(1);
+    });
+  });
+
+  describe('Retry with Exponential Backoff + Jitter', () => {
+    it('should retry a transient failure and eventually succeed', async () => {
+      let attempts = 0;
+      const flaky = async () => {
+        attempts += 1;
+        if (attempts < 3) throw new Error('Transient network blip');
+        return 'success';
+      };
+
+      const result = await retryWithBackoff(flaky, {
+        maxAttempts: 5,
+        baseDelayMs: 10,
+        // Deterministic seams: no real waiting, no real randomness.
+        sleep: async () => {},
+        random: () => 0.5,
+      });
+
+      expect(result).toBe('success');
+      expect(attempts).toBe(3);
+    });
+
+    it('should apply exponential backoff and dessynchronize retries via full jitter', async () => {
+      const delays: number[] = [];
+      let attempts = 0;
+
+      await expect(
+        retryWithBackoff(
+          async () => {
+            attempts += 1;
+            throw new Error('Always down');
+          },
+          {
+            maxAttempts: 4,
+            baseDelayMs: 100,
+            jitter: 'full',
+            // random = 0.5 -> jitter picks half of the exponential ceiling.
+            random: () => 0.5,
+            sleep: async (ms) => {
+              delays.push(ms);
+            },
+          }
+        )
+      ).rejects.toThrow(RetryExhaustedError);
+
+      // Exponential ceilings: 100, 200, 400. Full jitter at 0.5 -> half of each.
+      // 3 waits happen between 4 attempts.
+      expect(delays).toEqual([50, 100, 200]);
+      expect(attempts).toBe(4);
+    });
+
+    it('should not retry when the error is classified as non-retryable', async () => {
+      let attempts = 0;
+      class ValidationError extends Error {}
+
+      await expect(
+        retryWithBackoff(
+          async () => {
+            attempts += 1;
+            throw new ValidationError('Bad request — retrying is pointless');
+          },
+          {
+            maxAttempts: 5,
+            baseDelayMs: 10,
+            sleep: async () => {},
+            isRetryable: (err) => !(err instanceof ValidationError),
+          }
+        )
+      ).rejects.toThrow(RetryExhaustedError);
+
+      // Fail-fast on a permanent error: only the first attempt ran.
+      expect(attempts).toBe(1);
     });
   });
 });

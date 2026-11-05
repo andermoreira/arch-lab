@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { TransactionalDatabase } from './outbox-database.js';
 import { MockMessageBroker } from './message-broker.js';
 import { OutboxRelayWorker } from './outbox-relay.js';
-import { IdempotentConsumer } from './idempotent-consumer.js';
+import { IdempotentConsumer, InMemoryProcessedMessageStore } from './idempotent-consumer.js';
 
 describe('Fase 5: EDA & Transactional Outbox Pattern (Eliminating Dual-Write)', () => {
   it('should prove Dual-Write data loss when broker fails during immediate dispatch', async () => {
@@ -66,5 +66,85 @@ describe('Fase 5: EDA & Transactional Outbox Pattern (Eliminating Dual-Write)', 
     await broker.publish('orders', outboxId, { orderId: 'ord_success_99' });
     expect(consumer.processedCount).toBe(1); // Not executed again
     expect(consumer.skippedDuplicatesCount).toBe(1); // Safely skipped
+  });
+
+  it('should roll back the order when the outbox insert fails (true atomicity, no orphan order)', async () => {
+    const db = new TransactionalDatabase();
+
+    // Simula o segundo INSERT (outbox) falhando dentro da mesma transação.
+    db.failOutboxInsert = () => {
+      throw new Error('outbox INSERT failed: unique constraint violation');
+    };
+
+    await expect(
+      db.executeAtomicOrderPlacement(
+        { id: 'ord_atomic_01', amount: 250, status: 'PAID' },
+        { topic: 'orders', payload: { orderId: 'ord_atomic_01' } }
+      )
+    ).rejects.toThrow('outbox INSERT failed');
+
+    // Atomicidade: como o outbox não pôde ser gravado, o pedido também não
+    // ficou persistido. NÃO há pedido órfão sem evento (o mal do dual-write).
+    expect(db.getOrder('ord_atomic_01')).toBeNull();
+    expect(db.getPendingOutboxMessages()).toHaveLength(0);
+  });
+
+  it('should move a message to the FAILED dead-letter state after exhausting retries', async () => {
+    const db = new TransactionalDatabase();
+    const broker = new MockMessageBroker();
+    const relay = new OutboxRelayWorker(db, broker);
+
+    const outboxId = await db.executeAtomicOrderPlacement(
+      { id: 'ord_dead_letter', amount: 999, status: 'PAID' },
+      { topic: 'orders', payload: { orderId: 'ord_dead_letter' } }
+    );
+
+    // Broker permanece fora do ar em todas as tentativas do relay.
+    broker.isHealthy = false;
+
+    // Retry 1 e 2: continua PENDING (será repolado).
+    await relay.processPendingMessages();
+    expect(db.getOutboxRecord(outboxId)?.status).toBe('PENDING');
+    expect(db.getOutboxRecord(outboxId)?.retryCount).toBe(1);
+
+    await relay.processPendingMessages();
+    expect(db.getOutboxRecord(outboxId)?.status).toBe('PENDING');
+    expect(db.getOutboxRecord(outboxId)?.retryCount).toBe(2);
+
+    // Retry 3: esgota as tentativas -> vai para o estado terminal FAILED.
+    await relay.processPendingMessages();
+    expect(db.getOutboxRecord(outboxId)?.retryCount).toBe(3);
+    expect(db.getOutboxRecord(outboxId)?.status).toBe('FAILED');
+
+    // Uma vez FAILED, o relay não o repola mais (saiu de PENDING).
+    expect(db.getPendingOutboxMessages()).toHaveLength(0);
+  });
+
+  it('should stay idempotent across a consumer crash because processed ids are persisted outside the process', async () => {
+    const broker = new MockMessageBroker();
+    // Store persistido "fora do processo" (representa a tabela processed_messages).
+    const durableStore = new InMemoryProcessedMessageStore();
+
+    // Consumidor v1 processa a mensagem e persiste o id no store durável.
+    const consumerV1 = new IdempotentConsumer(durableStore);
+    broker.subscribe('orders', (msg) => consumerV1.handleMessage(msg));
+    await broker.publish('orders', 'msg_crash_01', { orderId: 'ord_crash' });
+    expect(consumerV1.processedCount).toBe(1);
+
+    // --- CRASH --- o processo cai e volta como uma instância nova (contadores
+    // zerados), mas apontando para o MESMO store durável.
+    const consumerV2 = new IdempotentConsumer(durableStore);
+
+    // Redistribuição at-least-once da mesma mensagem após o restart.
+    await consumerV2.handleMessage({
+      messageId: 'msg_crash_01',
+      topic: 'orders',
+      payload: { orderId: 'ord_crash' },
+      publishedAt: new Date(),
+    });
+
+    // O efeito de negócio NÃO é reaplicado: a marca sobreviveu ao crash.
+    expect(consumerV2.processedCount).toBe(0);
+    expect(consumerV2.skippedDuplicatesCount).toBe(1);
   });
 });
